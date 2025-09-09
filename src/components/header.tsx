@@ -13,7 +13,6 @@ const navLinks = [
   { href: '/#services', label: 'Services' },
   { href: '/book', label: 'Book a Cleaning' },
   { href: '/complaints', label: 'Submit Complaint' },
-  { href: '/admin/complaints', label: 'Admin' },
 ];
 
 const Header = () => {
