@@ -1,24 +1,53 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, Sparkles } from 'lucide-react';
+import { Menu, Sparkles, LogOut } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
+import { useSession } from '@/components/session-provider'; 
+import { useToast } from '@/hooks/use-toast';
 
 const navLinks = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/#how-it-works', label: 'How It Works' },
-  { href: '/#services', label: 'Services' },
-  { href: '/book', label: 'Book a Cleaning' },
-  { href: '/complaints', label: 'Submit Complaint' },
+  { href: '/dashboard', label: 'Dashboard', protected: true },
+  { href: '/#how-it-works', label: 'How It Works', protected: false },
+  { href: '/#services', label: 'Services', protected: false },
+  { href: '/book', label: 'Book a Cleaning', protected: true },
+  { href: '/complaints', label: 'Submit Complaint', protected: true },
 ];
 
 const Header = () => {
   const [isSheetOpen, setSheetOpen] = useState(false);
+  const { user } = useSession();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Signed Out',
+        description: "You've been successfully signed out.",
+      });
+      router.push('/sign-in');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign Out Failed',
+        description: 'There was a problem signing you out. Please try again.',
+      });
+    }
+  };
+
 
   const closeSheet = () => setSheetOpen(false);
+  
+  const visibleLinks = navLinks.filter(link => !link.protected || (link.protected && user));
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -30,7 +59,7 @@ const Header = () => {
           </span>
         </Link>
         <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
-          {navLinks.map((link) => (
+          {visibleLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -41,12 +70,21 @@ const Header = () => {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-4">
-          <Button asChild variant="outline">
-            <Link href="/sign-up">Sign In</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/sign-up">Sign Up</Link>
-          </Button>
+           {user ? (
+            <Button onClick={handleSignOut} variant="outline" size="sm">
+              <LogOut className="mr-2" />
+              Sign Out
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="outline">
+                <Link href="/sign-in">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/sign-up">Sign Up</Link>
+              </Button>
+            </>
+          )}
           <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="md:hidden">
@@ -63,7 +101,7 @@ const Header = () => {
                   </span>
                 </Link>
                 <nav className="flex flex-col gap-4">
-                  {navLinks.map((link) => (
+                  {visibleLinks.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}

@@ -21,14 +21,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-
-const user = {
-  name: 'Alex Johnson',
-  avatar: 'AJ',
-  email: 'alex.j@university.edu',
-  building: 'Chestnut Residence',
-};
+import { useSession } from '@/components/session-provider';
 
 const bookings = [
   {
@@ -55,11 +48,26 @@ const complaints = [
 ];
 
 export default function DashboardPage() {
+  const { user } = useSession();
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name.substring(0, 2);
+  }
+
+  if (!user) {
+    return null; // Or a loading spinner
+  }
+
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl md:text-4xl font-headline font-bold">
-          Welcome back, {user.name}!
+          Welcome back, {user.displayName || 'User'}!
         </h1>
         <p className="text-muted-foreground">
           Here’s an overview of your Campus Clean account.
@@ -72,18 +80,18 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={`https://i.pravatar.cc/80?u=${user.avatar}`} />
-                <AvatarFallback>{user.avatar}</AvatarFallback>
+                <AvatarImage src={user.photoURL || `https://i.pravatar.cc/80?u=${user.uid}`} />
+                <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="font-headline text-2xl">{user.name}</CardTitle>
+                <CardTitle className="font-headline text-2xl">{user.displayName || 'Anonymous User'}</CardTitle>
                 <CardDescription>{user.email}</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="text-sm space-y-3">
                <div className="flex items-center gap-3">
                   <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{user.building}</span>
+                  <span className="font-medium">{'Chestnut Residence'}</span>
                 </div>
               <Button variant="outline" className="w-full mt-2">Edit Profile</Button>
             </CardContent>
@@ -127,6 +135,9 @@ export default function DashboardPage() {
                      </Badge>
                   </li>
                 ))}
+                 {bookings.length === 0 && (
+                        <p className='text-sm text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>You have no upcoming or past bookings.</p>
+                    )}
               </ul>
             </CardContent>
           </Card>

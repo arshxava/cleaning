@@ -10,7 +10,11 @@ import {
   Phone,
   User,
   MessageSquare,
+  Lock
 } from 'lucide-react';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +42,7 @@ import Link from 'next/link';
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
   notificationPreference: z.enum(['email', 'sms'], {
     required_error: 'Please select a notification preference.',
@@ -48,21 +53,39 @@ const formSchema = z.object({
 
 export default function SignUpPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
       email: '',
+      password: '',
       phone: '',
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: 'Sign Up Successful!',
-      description: 'Welcome to Campus Clean. You can now book your first cleaning.',
-    });
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      await sendEmailVerification(userCredential.user);
+
+      toast({
+        title: 'Account Created!',
+        description: 'A verification email has been sent to your inbox. Please verify your email to log in.',
+      });
+      router.push('/sign-in');
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "This email is already in use. Please try signing in.";
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Sign Up Failed',
+        description,
+      });
+    }
   }
 
   return (
@@ -105,6 +128,27 @@ export default function SignUpPage() {
                         <Input
                           type="email"
                           placeholder="you@university.edu"
+                          {...field}
+                          className="pl-10"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
                           {...field}
                           className="pl-10"
                         />
@@ -223,12 +267,14 @@ export default function SignUpPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" size="lg">Create Account</Button>
+              <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+              </Button>
             </form>
           </Form>
            <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="#" className="font-medium text-primary hover:underline">
+            <Link href="/sign-in" className="font-medium text-primary hover:underline">
               Sign In
             </Link>
           </p>
