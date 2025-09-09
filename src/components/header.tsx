@@ -8,11 +8,12 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 
 const navLinks = [
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/#how-it-works', label: 'How It Works' },
   { href: '/#services', label: 'Services' },
   { href: '/book', label: 'Book a Cleaning' },
   { href: '/complaints', label: 'Submit Complaint' },
-  { href: '/admin/complaints', label: 'Admin Dashboard' },
+  { href: '/admin/complaints', label: 'Admin' },
 ];
 
 const Header = () => {
