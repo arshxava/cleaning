@@ -14,8 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', protected: true },
-  { href: '/#how-it-works', label: 'How It Works', protected: false },
-  { href: '/#services', label: 'Services', protected: false },
   { href: '/book', label: 'Book a Cleaning', protected: true },
   { href: '/complaints', label: 'Submit Complaint', protected: true },
 ];
