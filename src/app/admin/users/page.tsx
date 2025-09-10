@@ -35,8 +35,9 @@ export default function UsersPage() {
         if (!response.ok) {
           throw new Error('Failed to fetch users');
         }
-        const data = await response.json();
-        setUsers(data);
+        const data: UserProfile[] = await response.json();
+        // Filter to only show users with the 'user' role
+        setUsers(data.filter(u => u.role === 'user'));
       } catch (error) {
         toast({
           variant: 'destructive',

@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ const userSchema = z.object({
   school: z.string(),
   roomSize: z.string(),
   role: z.enum(['user', 'admin', 'provider']).default('user'),
+  assignedBuildings: z.array(z.string()).optional(),
 });
 
 export async function POST(request: Request) {

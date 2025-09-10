@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { Building, Home, Hash, MapPin, DollarSign } from 'lucide-react';
+import { Building, Home, Hash, MapPin, DollarSign, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,12 +27,23 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+
+const availableServices = [
+  { id: 'standard', label: 'Standard Clean' },
+  { id: 'deep', label: 'Deep Clean' },
+  { id: 'move-out', label: 'Move-In/Out Clean' },
+] as const;
 
 const formSchema = z.object({
   name: z.string().min(3, 'Building name must be at least 3 characters.'),
   location: z.string().min(3, 'Location must be at least 3 characters.'),
   floors: z.coerce.number().min(1, 'A building must have at least 1 floor.'),
   perRoomPrice: z.coerce.number().min(1, 'Price must be greater than 0.'),
+  services: z.array(z.string()).refine((value) => value.some((item) => item), {
+    message: 'You have to select at least one service.',
+  }),
 });
 
 type Building = {
@@ -41,6 +52,7 @@ type Building = {
   location: string;
   floors: number;
   perRoomPrice: number;
+  services: string[];
   createdAt: string;
 }
 
@@ -56,6 +68,7 @@ export default function BuildingsPage() {
       location: '',
       floors: 1,
       perRoomPrice: 50,
+      services: ['standard'],
     },
   });
 
@@ -187,13 +200,58 @@ export default function BuildingsPage() {
                     name="perRoomPrice"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price per Room (CAD)</FormLabel>
+                        <FormLabel>Base Price per Room (CAD)</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input type="number" {...field} className="pl-10" />
                           </div>
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="services"
+                    render={() => (
+                      <FormItem>
+                        <div className="mb-4">
+                           <FormLabel className="text-base">Available Services</FormLabel>
+                        </div>
+                        {availableServices.map((item) => (
+                          <FormField
+                            key={item.id}
+                            control={form.control}
+                            name="services"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={item.id}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(item.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, item.id])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== item.id
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">
+                                    {item.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
                         <FormMessage />
                       </FormItem>
                     )}
@@ -218,24 +276,31 @@ export default function BuildingsPage() {
               <div className="space-y-4">
                 {loading ? (
                   <>
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
                   </>
                 ) : buildings.length > 0 ? (
                   buildings.map((building) => (
-                    <div key={building._id} className="flex items-center justify-between p-4 border rounded-lg gap-4">
-                      <div className="flex-1">
-                        <p className="font-semibold">{building.name}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                          <MapPin className="h-3 w-3" /> {building.location}
-                        </p>
+                    <div key={building._id} className="flex items-start justify-between p-4 border rounded-lg gap-4">
+                      <div className="flex-1 space-y-2">
+                         <div>
+                            <p className="font-semibold">{building.name}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                              <MapPin className="h-3 w-3" /> {building.location}
+                            </p>
+                        </div>
+                        <div className='flex items-center gap-2 flex-wrap'>
+                            {building.services?.map(serviceId => {
+                                const service = availableServices.find(s => s.id === serviceId);
+                                return service ? <Badge key={serviceId} variant="secondary">{service.label}</Badge> : null;
+                            })}
+                        </div>
                       </div>
-                       <div className="text-right">
+                       <div className="text-right flex-shrink-0">
                           <p className="font-semibold text-lg">${building.perRoomPrice.toFixed(2)}</p>
                           <p className="text-sm text-muted-foreground">{building.floors} floors</p>
                       </div>
-                      <Button variant="outline" size="sm">Edit</Button>
                     </div>
                   ))
                 ) : (

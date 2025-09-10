@@ -8,6 +8,7 @@ const buildingSchema = z.object({
   location: z.string().min(3),
   floors: z.coerce.number().min(1),
   perRoomPrice: z.coerce.number().min(1),
+  services: z.array(z.string()),
 });
 
 export async function POST(request: Request) {
