@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { useSession } from '@/components/session-provider';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +34,8 @@ const formSchema = z.object({
 
 export default function ComplaintPage() {
   const { toast } = useToast();
+  const { user, profile } = useSession();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,13 +43,45 @@ export default function ComplaintPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: 'Complaint Submitted',
-      description: 'Thank you for your feedback. Your complaint has been sent to our support team and the service provider.',
-    });
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user || !profile) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to submit a complaint.',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...values,
+          userId: user.uid,
+          user: user.displayName,
+          building: profile.school,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit complaint.');
+      }
+
+      toast({
+        title: 'Complaint Submitted',
+        description: 'Thank you for your feedback. Your complaint has been sent to our support team and the service provider.',
+      });
+      form.reset();
+    } catch (error) {
+      console.error('Complaint submission error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'An unexpected error occurred. Please try again.',
+      });
+    }
   }
 
   return (
@@ -100,8 +135,8 @@ export default function ComplaintPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" size="lg">
-                Send Complaint
+              <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
+                 {form.formState.isSubmitting ? 'Submitting...' : 'Send Complaint'}
               </Button>
             </form>
           </Form>
