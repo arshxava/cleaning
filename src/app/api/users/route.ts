@@ -5,15 +5,16 @@ import { z } from 'zod';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
-import path from 'path';
 
 // Initialize Firebase Admin SDK
-// Make sure the path to your service account key is correct.
-// NOTE: It's better to use environment variables for service account keys in production.
-const serviceAccountPath = path.resolve(process.cwd(), 'campus-clean-jhzd4-firebase-adminsdk-v71t1-9c8f3e582d.json');
-const serviceAccount = require(serviceAccountPath);
-
+// This setup reads credentials from an environment variable for security and build reliability.
 if (!getApps().length) {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    throw new Error('Missing FIREBASE_SERVICE_ACCOUNT environment variable');
+  }
+  
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
   initializeApp({
     credential: credential.cert(serviceAccount),
   });
