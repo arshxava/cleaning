@@ -75,7 +75,7 @@ export default function BuildingsPage() {
 
   useEffect(() => {
     fetchBuildings();
-  }, [toast]);
+  }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
