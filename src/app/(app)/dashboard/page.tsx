@@ -24,7 +24,6 @@ import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/components/session-provider';
 
 // Static data removed
-
 const bookings: any[] = [];
 const complaints: any[] = [];
 
