@@ -52,10 +52,18 @@ export default function SignInPage() {
 
       // Fetch user profile to check role
       const response = await fetch(`/api/users/${user.uid}`);
-      let profile: UserProfile | null = null;
-      if (response.ok) {
-        profile = await response.json();
+      
+      if (!response.ok) {
+        // If profile doesn't exist, treat as regular user.
+        toast({
+          title: 'Signed In Successfully!',
+          description: "Welcome back! Redirecting to your dashboard.",
+        });
+        router.push('/dashboard');
+        return;
       }
+      
+      const profile: UserProfile = await response.json();
 
       toast({
         title: 'Signed In Successfully!',
