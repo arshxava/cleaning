@@ -4,27 +4,33 @@ import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { credential } from 'firebase-admin';
 
 // Initialize Firebase Admin SDK
+// Make sure the path to your service account key is correct.
+// NOTE: It's better to use environment variables for service account keys in production.
 const serviceAccount = require('../../../../campus-clean-jhzd4-firebase-adminsdk-v71t1-9c8f3e582d.json');
 
 if (!getApps().length) {
   initializeApp({
-    credential: require('firebase-admin').credential.cert(serviceAccount),
+    credential: credential.cert(serviceAccount),
   });
 }
 
 const userSchema = z.object({
-  // uid is no longer sent from client for providers
-  uid: z.string().optional(), 
+  // uid is optional as it will be generated for providers on the backend
+  uid: z.string().optional(),
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),
-  notificationPreference: z.enum(['email', 'sms']),
-  school: z.string(),
-  roomSize: z.string(),
+  // For providers created by admin, these might not be present.
+  notificationPreference: z.enum(['email', 'sms']).optional(),
+  school: z.string().optional(),
+  roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   assignedBuildings: z.array(z.string()).optional(),
+  // This field is only for the form, not for the database schema
+  password: z.string().min(6).optional(),
 });
 
 export async function POST(request: Request) {
@@ -37,49 +43,57 @@ export async function POST(request: Request) {
     const usersCollection = db.collection('users');
 
     let finalUid = userData.uid;
-
+    
+    // Logic for creating a new provider by an admin
     if (userData.role === 'provider' && !userData.uid) {
-      // For providers, we create the Firebase Auth user first to get a UID
       try {
         const userRecord = await getAuth().createUser({
           email: userData.email,
           displayName: userData.name,
-          // No password set here, user sets it via reset link
+          // No password is set here, the provider will set it via a password reset link.
         });
         finalUid = userRecord.uid;
       } catch (error: any) {
         if (error.code === 'auth/email-already-exists') {
-          return NextResponse.json({ message: 'An account with this email already exists in Firebase Authentication.' }, { status: 409 });
+          // If auth user exists, check if a DB record also exists.
+          const existingUser = await usersCollection.findOne({ email: userData.email });
+          if (existingUser) {
+            return NextResponse.json({ message: 'An account with this email already exists.' }, { status: 409 });
+          }
+          // If only auth user exists, get the uid and proceed to create DB record.
+          const userRecord = await getAuth().getUserByEmail(userData.email);
+          finalUid = userRecord.uid;
+        } else {
+           throw error; // Re-throw other Firebase Admin errors
         }
-        throw error; // Re-throw other auth errors
       }
     } else if (userData.role === 'user' && !userData.uid) {
-      // This should not happen for regular user sign-up as UID is passed from client
+      // This case handles regular user sign-up where UID is passed from the client Firebase SDK
       return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
     }
     
-    // Check if user already exists in MongoDB
-    const existingUser = await usersCollection.findOne({ email: userData.email });
-    if (existingUser) {
-        return NextResponse.json({ message: 'User with this email already exists in the database.' }, { status: 409 });
+    // Check if user already exists in our DB by email, just in case
+    const existingUserInDB = await usersCollection.findOne({ email: userData.email });
+    if (existingUserInDB) {
+        return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
     }
 
-    const dataToInsert = {
+    const { password, ...dataToInsert } = {
         ...userData,
         uid: finalUid,
-        role: userData.role || 'user',
         createdAt: new Date(),
     };
     
-    const result = await usersCollection.insertOne(dataToInsert);
+    await usersCollection.insertOne(dataToInsert);
 
-    return NextResponse.json({ message: 'User created successfully', userId: result.insertedId, uid: finalUid }, { status: 201 });
+    return NextResponse.json({ message: 'User created successfully', uid: finalUid }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid user data', errors: error.errors }, { status: 400 });
     }
-    console.error('Error creating user:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    console.error('Error in POST /api/users:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    return NextResponse.json({ message: 'Internal Server Error', error: errorMessage }, { status: 500 });
   }
 }
 

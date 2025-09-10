@@ -115,37 +115,17 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // In a real app, the backend would create both the auth user and the database record
-      // in a single, atomic transaction to prevent orphaned data.
-      // For this prototype, we'll do it in sequence from the client.
-
-      const providerData = {
-        // We'll generate a temporary UID here, but a real backend would use the one from Firebase Auth
-        uid: `temp_${Date.now()}`, 
-        ...values,
-        role: 'provider',
-        notificationPreference: 'email', // default
-        school: 'N/A',
-        roomSize: 'N/A',
-      };
-      
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(providerData),
+        body: JSON.stringify({ ...values, role: 'provider' }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        // Check for specific error from our API (e.g. email exists)
-        if (errorData.error?.includes('E11000 duplicate key error collection')) {
-             throw new Error('An account with this email already exists.');
-        }
-        throw new Error(errorData.message || 'Failed to save provider data.');
+        throw new Error(errorData.message || 'Failed to create provider.');
       }
       
-      // After successfully saving to DB, send the password reset email.
-      // This email will contain a link for the user to set their password.
       await sendPasswordResetEmail(auth, values.email);
 
       toast({
