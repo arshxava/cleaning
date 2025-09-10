@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Building,
   Calendar as CalendarIcon,
@@ -57,17 +57,38 @@ const timeSlots = [
   '03:00 PM',
 ];
 
+type BuildingData = {
+  _id: string;
+  name: string;
+};
+
 export default function BookingPage() {
   const { user, profile } = useSession();
   const { toast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [buildings, setBuildings] = useState<BuildingData[]>([]);
   const [building, setBuilding] = useState<string>();
   const [service, setService] = useState<string>();
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
   const [frequency, setFrequency] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      try {
+        const response = await fetch('/api/buildings');
+        if (response.ok) {
+          const data = await response.json();
+          setBuildings(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch buildings:", error);
+      }
+    };
+    fetchBuildings();
+  }, []);
 
 
   const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
@@ -165,7 +186,7 @@ export default function BookingPage() {
             <div className="space-y-6">
               <div>
                 <Label>School/Building</Label>
-                <Select onValueChange={setBuilding} value={building}>
+                 <Select onValueChange={setBuilding} value={building} disabled={!profile}>
                   <div className="relative mt-2">
                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <SelectTrigger className="pl-10">
@@ -173,10 +194,9 @@ export default function BookingPage() {
                     </SelectTrigger>
                   </div>
                   <SelectContent>
-                    <SelectItem value="u-toronto">University of Toronto - Chestnut Residence</SelectItem>
-                    <SelectItem value="mcgill">McGill University - Royal Victoria College</SelectItem>
-                    <SelectItem value="ubc">UBC - Place Vanier</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {buildings.length > 0 ? buildings.map((b) => (
+                        <SelectItem key={b._id} value={b.name}>{b.name}</SelectItem>
+                    )) : <SelectItem value="loading" disabled>Loading buildings...</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>

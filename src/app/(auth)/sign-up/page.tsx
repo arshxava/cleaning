@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,6 +39,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -51,9 +53,34 @@ const formSchema = z.object({
   roomSize: z.string({ required_error: 'Please select your room size.' }),
 });
 
+type BuildingData = {
+  _id: string;
+  name: string;
+  roomTypes: { name: string }[];
+};
+
 export default function SignUpPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
+
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      try {
+        const response = await fetch('/api/buildings');
+        if (response.ok) {
+          const data = await response.json();
+          setBuildings(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch buildings:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load building data.' });
+      }
+    };
+    fetchBuildings();
+  }, [toast]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -63,6 +90,13 @@ export default function SignUpPage() {
       phone: '',
     },
   });
+  
+  const handleBuildingChange = (buildingId: string) => {
+      const building = buildings.find(b => b._id === buildingId);
+      setSelectedBuilding(building || null);
+      form.setValue('school', building?.name || '');
+      form.resetField('roomSize');
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -82,7 +116,7 @@ export default function SignUpPage() {
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
-          'Content-Type': 'json',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           uid: user.uid,
@@ -254,7 +288,7 @@ export default function SignUpPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>School/Building</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={handleBuildingChange} defaultValue={field.value}>
                       <FormControl>
                         <div className="relative">
                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -264,10 +298,9 @@ export default function SignUpPage() {
                         </div>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="u-toronto">University of Toronto - Chestnut Residence</SelectItem>
-                        <SelectItem value="mcgill">McGill University - Royal Victoria College</SelectItem>
-                        <SelectItem value="ubc">UBC - Place Vanier</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                         {buildings.length > 0 ? buildings.map((b) => (
+                            <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
+                        )) : <SelectItem value="loading" disabled>Loading buildings...</SelectItem>}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -280,20 +313,19 @@ export default function SignUpPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Room Size</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedBuilding}>
                       <FormControl>
                         <div className="relative">
                           <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select your room size" />
+                            <SelectValue placeholder={!selectedBuilding ? "Select a building first" : "Select your room size"} />
                           </SelectTrigger>
                         </div>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="dorm-single">Dorm (Single)</SelectItem>
-                        <SelectItem value="dorm-double">Dorm (Double)</SelectItem>
-                        <SelectItem value="bachelor">Bachelor Apartment</SelectItem>
-                        <SelectItem value="1-bedroom">1-Bedroom Apartment</SelectItem>
+                        {selectedBuilding?.roomTypes.map((room, index) => (
+                           <SelectItem key={index} value={room.name}>{room.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
