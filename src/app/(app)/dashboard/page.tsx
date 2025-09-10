@@ -23,8 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/components/session-provider';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Booking } from '@/lib/types'; // Import Booking type
-import { Complaint } from '@/app/admin/complaints/complaint-analysis-card'; // Import Complaint type
+import { Booking } from '@/lib/types'; 
+import { Complaint } from '@/app/admin/complaints/complaint-analysis-card'; 
 
 export default function DashboardPage() {
   const { user, profile } = useSession();
@@ -126,41 +126,47 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Skeleton className="h-40 w-full" />
+                  <Skeleton className="h-40 w-full" />
                 </div>
-              ) : (
-                <ul className="space-y-4">
-                  {bookings.length === 0 ? (
+              ) : bookings.length === 0 ? (
                       <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
                           <p className='mb-4'>You have no upcoming or past bookings.</p>
                            <Button asChild>
                               <Link href="/book">Book Your First Cleaning</Link>
                           </Button>
                       </div>
-                  ) : bookings.map((booking) => (
-                    <li
-                      key={booking._id}
-                      className="flex flex-wrap items-center justify-between gap-4 p-4 border rounded-lg"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-semibold flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-primary" />
-                          {booking.service}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                           <Clock className="w-4 h-4" />
-                          {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                        </p>
-                      </div>
-                       <Badge variant={booking.status === 'Completed' ? 'outline' : 'default'}>
-                          {booking.status}
-                       </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                  ) : (
+                     <div className="grid md:grid-cols-2 gap-6">
+                        {bookings.map((booking) => (
+                           <Card key={booking._id} className="flex flex-col">
+                             <CardHeader>
+                               <div className="flex justify-between items-start">
+                                 <CardTitle className="text-lg font-headline flex items-center gap-2">
+                                     <Sparkles className="h-4 w-4 text-primary"/>
+                                     {booking.service}
+                                 </CardTitle>
+                                 <Badge variant={booking.status === 'Completed' ? 'outline' : 'default'}>
+                                    {booking.status}
+                                 </Badge>
+                               </div>
+                               <CardDescription>{booking.building}</CardDescription>
+                             </CardHeader>
+                             <CardContent className="flex-grow space-y-2 text-sm">
+                               <p className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                                  {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                                </p>
+                               <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                  <Clock className="w-4 h-4" />
+                                 {booking.time}
+                               </p>
+                             </CardContent>
+                           </Card>
+                        ))}
+                     </div>
+                  )}
             </CardContent>
           </Card>
 
@@ -216,3 +222,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -1,9 +1,10 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { MessageSquare, Image as ImageIcon, Briefcase } from 'lucide-react';
 import { useSession } from '@/components/session-provider';
 
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+import { Booking } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formSchema = z.object({
+  bookingId: z.string().optional(),
   complaint: z.string().min(10, 'Please provide at least 10 characters to describe the issue.'),
   image: z.any().optional(),
 });
@@ -35,6 +40,27 @@ const formSchema = z.object({
 export default function ComplaintPage() {
   const { toast } = useToast();
   const { user, profile } = useSession();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+
+  useEffect(() => {
+    const fetchBookings = async () => {
+      if (!user) return;
+      setLoadingBookings(true);
+      try {
+        const res = await fetch('/api/bookings');
+        if (res.ok) {
+          const allBookings: Booking[] = await res.json();
+          setBookings(allBookings.filter(b => b.userId === user.uid));
+        }
+      } catch (error) {
+        console.error("Failed to fetch bookings for complaints:", error);
+      } finally {
+        setLoadingBookings(false);
+      }
+    };
+    fetchBookings();
+  }, [user]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -96,6 +122,41 @@ export default function ComplaintPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+               <FormField
+                control={form.control}
+                name="bookingId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className='flex items-center'>
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Related Booking (Optional)
+                    </FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingBookings || bookings.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={loadingBookings ? "Loading your bookings..." : "Select a booking..."} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bookings.length === 0 && !loadingBookings ? (
+                           <SelectItem value="none" disabled>You have no bookings.</SelectItem>
+                        ) : (
+                           bookings.map(booking => (
+                            <SelectItem key={booking._id} value={booking._id}>
+                              {booking.service} on {new Date(booking.date).toLocaleDateString('en-CA', { timeZone: 'UTC' })}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                     Select the booking this complaint is related to, if applicable.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="complaint"
@@ -145,3 +206,4 @@ export default function ComplaintPage() {
     </div>
   );
 }
+

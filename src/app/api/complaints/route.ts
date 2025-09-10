@@ -9,6 +9,7 @@ const complaintSchema = z.object({
   building: z.string(),
   complaint: z.string(),
   image: z.any().optional(),
+  bookingId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,12 +19,22 @@ export async function POST(request: Request) {
 
     const client = await clientPromise;
     const db = client.db();
+    
+    let providerName = 'Unassigned';
+
+    // If a bookingId is provided, find the provider from the booking
+    if (data.bookingId && ObjectId.isValid(data.bookingId)) {
+        const booking = await db.collection('bookings').findOne({ _id: new ObjectId(data.bookingId) });
+        if (booking && booking.provider) {
+            providerName = booking.provider;
+        }
+    }
 
     const complaintData = {
       ...data,
       date: new Date(),
       status: 'Pending',
-      provider: 'QFS', // Default provider for now
+      provider: providerName, 
       lastResponseTimestamp: new Date(), // Set initial timestamp
     };
 
@@ -52,3 +63,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
+
