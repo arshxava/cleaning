@@ -87,7 +87,7 @@ export default function SignUpPage() {
         body: JSON.stringify({
           uid: user.uid,
           ...values,
-          role: 'user', // Explicitly set the role to 'user'
+          role: 'user',
         }),
       });
 
@@ -105,12 +105,14 @@ export default function SignUpPage() {
     } catch (error: any) {
       console.error("Sign up error:", error);
       let description = "An unexpected error occurred. Please try again.";
+      
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already in use. Please try signing in.";
         form.setError("email", { type: "manual", message: "This email is already taken." });
       } else {
         description = error.message;
       }
+      
       toast({
         variant: 'destructive',
         title: 'Sign Up Failed',
