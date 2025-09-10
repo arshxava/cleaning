@@ -14,6 +14,7 @@ import {
   Building,
   MessageSquareWarning,
   HardHat,
+  Briefcase,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -66,8 +67,9 @@ export default function AdminLayout({
   const navLinks = [
     { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
-    { href: '/admin/providers', label: 'Providers', icon: HardHat, disabled: false },
-    { href: '/admin/users', label: 'Users', icon: Users, disabled: false },
+    { href: '/admin/providers', label: 'Providers', icon: HardHat },
+    { href: '/admin/ongoing-services', label: 'Ongoing Services', icon: Briefcase },
+    { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
 

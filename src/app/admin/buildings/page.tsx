@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { Building, Home, Hash, MapPin, DollarSign, Sparkles, Trash, PlusCircle, Calendar, User, Clock } from 'lucide-react';
+import { Building as BuildingIcon, Home, Hash, MapPin, DollarSign, Sparkles, Trash, PlusCircle, Layers } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +23,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,6 +50,7 @@ const roomTypeSchema = z.object({
 const formSchema = z.object({
   name: z.string().min(3, 'Building name must be at least 3 characters.'),
   location: z.string().min(3, 'Location must be at least 3 characters.'),
+  floors: z.coerce.number().min(1, "At least one floor is required."),
   roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type.")
 });
 
@@ -58,15 +58,10 @@ type Building = {
   _id: string;
   name: string;
   location: string;
+  floors: number;
   roomTypes: z.infer<typeof roomTypeSchema>[];
   createdAt: string;
 }
-
-// Mock data - replace with API call later
-const ongoingBookings = [
-    { id: 1, buildingName: 'Chestnut Residence', userName: 'Alice Johnson', service: 'Deep Clean', date: '2024-08-15', roomType: 'Single Dorm' },
-    { id: 2, buildingName: 'Place Vanier', userName: 'Bob Williams', service: 'Standard Clean', date: '2024-08-16', roomType: 'Double Dorm' },
-];
 
 export default function BuildingsPage() {
   const { toast } = useToast();
@@ -78,6 +73,7 @@ export default function BuildingsPage() {
     defaultValues: {
       name: '',
       location: '',
+      floors: 1,
       roomTypes: [{ name: 'Single Dorm', count: 10, prices: { standard: 50, deep: 80, 'move-out': 120 } }]
     },
   });
@@ -162,7 +158,7 @@ export default function BuildingsPage() {
                   <FormField control={form.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Building Name</FormLabel>
-                        <FormControl><div className="relative"><Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Chestnut Residence" {...field} className="pl-10" /></div></FormControl>
+                        <FormControl><div className="relative"><BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Chestnut Residence" {...field} className="pl-10" /></div></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -171,6 +167,14 @@ export default function BuildingsPage() {
                       <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl><div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Toronto, ON" {...field} className="pl-10" /></div></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField control={form.control} name="floors" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Number of Floors</FormLabel>
+                        <FormControl><div className="relative"><Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="e.g., 12" {...field} className="pl-10" /></div></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -229,7 +233,7 @@ export default function BuildingsPage() {
                     <Card key={building._id}>
                       <CardHeader>
                         <CardTitle>{building.name}</CardTitle>
-                        <CardDescription>{building.location}</CardDescription>
+                        <CardDescription>{building.location} - {building.floors} floors</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {building.roomTypes.map((room, index) => (
@@ -255,39 +259,6 @@ export default function BuildingsPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-                <CardTitle>Ongoing Services</CardTitle>
-                <CardDescription>A view of current and upcoming bookings across all buildings.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-                {loading ? (
-                  <>
-                    <Skeleton className="h-40 w-full" />
-                    <Skeleton className="h-40 w-full" />
-                  </>
-                ) : ongoingBookings.length > 0 ? (
-                    ongoingBookings.map(booking => (
-                        <Card key={booking.id} className="flex flex-col justify-between">
-                            <CardHeader>
-                                <CardTitle className="text-xl">{booking.buildingName}</CardTitle>
-                                <CardDescription>{booking.roomType}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="text-sm space-y-2">
-                                <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /><span>{booking.service}</span></div>
-                                <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /><span>{booking.userName}</span></div>
-                                <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /><span>{booking.date}</span></div>
-                            </CardContent>
-                        </Card>
-                    ))
-                ) : (
-                    <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md md:col-span-2'>
-                        <p>No ongoing bookings right now.</p>
-                    </div>
-                )}
             </CardContent>
           </Card>
         </div>
