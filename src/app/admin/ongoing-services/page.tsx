@@ -17,6 +17,8 @@ const mockBookings: Booking[] = [
     date: '2024-08-15',
     status: 'Aligned',
     provider: 'Quality First Sparkle',
+    beforeImages: [],
+    afterImages: [],
   },
   {
     id: '2',
@@ -27,7 +29,8 @@ const mockBookings: Booking[] = [
     date: '2024-08-16',
     status: 'In Process',
     provider: 'CleanSweep Inc.',
-    beforeImage: 'https://picsum.photos/seed/before1/600/400',
+    beforeImages: ['https://picsum.photos/seed/before1/600/400'],
+    afterImages: [],
   },
   {
     id: '3',
@@ -38,8 +41,8 @@ const mockBookings: Booking[] = [
     date: '2024-08-12',
     status: 'Completed',
     provider: 'Quality First Sparkle',
-    beforeImage: 'https://picsum.photos/seed/before2/600/400',
-    afterImage: 'https://picsum.photos/seed/after2/600/400',
+    beforeImages: ['https://picsum.photos/seed/before2/600/400', 'https://picsum.photos/seed/before3/600/400'],
+    afterImages: ['https://picsum.photos/seed/after2/600/400'],
   },
    {
     id: '4',
@@ -50,6 +53,8 @@ const mockBookings: Booking[] = [
     date: '2024-08-18',
     status: 'Aligned',
     provider: 'CleanSweep Inc.',
+    beforeImages: [],
+    afterImages: [],
   },
 ];
 
@@ -88,7 +93,7 @@ export default function OngoingServicesPage() {
             ))
         ) : (
             columns.map(status => (
-              <div key={status} className="space-y-4 p-4 bg-muted/50 rounded-lg">
+              <div key={status} className="space-y-4 p-4 bg-muted/50 rounded-lg h-full">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   {status}
                   <Badge variant="secondary" className="h-6">{bookings.filter(b => b.status === status).length}</Badge>
