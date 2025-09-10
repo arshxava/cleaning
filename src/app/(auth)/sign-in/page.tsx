@@ -72,6 +72,8 @@ export default function SignInPage() {
 
       if (profile?.role === 'admin') {
         router.push('/admin/complaints');
+      } else if (profile?.role === 'provider') {
+        router.push('/provider/dashboard');
       } else {
         router.push('/dashboard');
       }

@@ -17,17 +17,18 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 const publicRoutes = ['/sign-in', '/sign-up', '/verify-email', '/'];
 const adminRoutePrefix = '/admin';
+const providerRoutePrefix = '/provider';
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true); // This now represents the combined loading state of auth and profile
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true); // Start loading whenever auth state changes
+      setLoading(true);
       if (firebaseUser) {
         if (!firebaseUser.emailVerified && pathname !== '/verify-email') {
           setUser(null);
@@ -47,13 +48,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setProfile(null);
             console.error("Failed to fetch user profile", e);
           } finally {
-            setLoading(false); // Stop loading once user and profile are processed
+            setLoading(false);
           }
         }
       } else {
         setUser(null);
         setProfile(null);
-        setLoading(false); // Stop loading if no user
+        setLoading(false);
       }
     });
 
@@ -61,11 +62,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    // Don't do anything until auth state and profile fetch are fully resolved
     if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)));
     const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
+    const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
@@ -73,25 +74,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     if (user) {
-      // If user is on an auth page, redirect them away
       if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
         if (profile?.role === 'admin') {
           router.push('/admin/complaints');
+        } else if (profile?.role === 'provider') {
+          router.push('/provider/dashboard');
         } else {
           router.push('/dashboard');
         }
         return;
       }
       
-      // If user is on an admin route but is not an admin, redirect
       if (pathIsAdmin && profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+      
+      if (pathIsProvider && profile?.role !== 'provider') {
         router.push('/dashboard');
         return;
       }
     }
   }, [user, profile, loading, router, pathname]);
 
-  // Show a loading skeleton on protected routes while the session is being established.
   const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
   if (loading && !isAuthPage && !publicRoutes.includes(pathname)) {
     return (

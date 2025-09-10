@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, Sparkles, LogOut, Shield } from 'lucide-react';
+import { Menu, Sparkles, LogOut, Shield, Briefcase } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -13,9 +13,11 @@ import { useSession } from '@/components/session-provider';
 import { useToast } from '@/hooks/use-toast';
 
 const navLinks = [
-  { href: '/dashboard', label: 'Dashboard', protected: true },
-  { href: '/book', label: 'Book a Cleaning', protected: true },
-  { href: '/complaints', label: 'Submit Complaint', protected: true },
+  { href: '/dashboard', label: 'Dashboard', roles: ['user'] },
+  { href: '/book', label: 'Book a Cleaning', roles: ['user'] },
+  { href: '/complaints', label: 'Submit Complaint', roles: ['user'] },
+  { href: '/admin/complaints', label: 'Admin Dashboard', icon: Shield, roles: ['admin'] },
+  { href: '/provider/dashboard', label: 'Provider Dashboard', icon: Briefcase, roles: ['provider'] },
 ];
 
 const Header = () => {
@@ -45,10 +47,12 @@ const Header = () => {
 
   const closeSheet = () => setSheetOpen(false);
   
-  const visibleLinks = navLinks.filter(link => {
-    if (profile?.role === 'admin') return false;
-    return !link.protected || (link.protected && user);
-  });
+  const getVisibleLinks = () => {
+    if (!user || !profile) return [];
+    return navLinks.filter(link => link.roles.includes(profile.role));
+  }
+  
+  const visibleLinks = getVisibleLinks();
 
 
   return (
@@ -65,20 +69,12 @@ const Header = () => {
             <Link
               key={link.href}
               href={link.href}
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
             >
+              {link.icon && <link.icon className="h-4 w-4" />}
               {link.label}
             </Link>
           ))}
-           {profile?.role === 'admin' && (
-              <Link
-                href="/admin/complaints"
-                className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Shield className="h-4 w-4" />
-                Admin Dashboard
-              </Link>
-            )}
         </nav>
         <div className="ml-auto flex items-center gap-4">
            {user ? (
@@ -116,22 +112,13 @@ const Header = () => {
                     <Link
                       key={link.href}
                       href={link.href}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
                       onClick={closeSheet}
                     >
+                      {link.icon && <link.icon className="h-4 w-4" />}
                       {link.label}
                     </Link>
                   ))}
-                   {profile?.role === 'admin' && (
-                    <Link
-                        href="/admin/complaints"
-                        className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-                        onClick={closeSheet}
-                    >
-                        <Shield className="h-4 w-4" />
-                        Admin Dashboard
-                    </Link>
-                    )}
                 </nav>
               </div>
             </SheetContent>

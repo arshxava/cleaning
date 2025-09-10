@@ -2,9 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSession } from '@/components/session-provider';
 import { BookingCard, Booking } from '@/components/booking-card';
 
 const mockBookings: Booking[] = [
@@ -54,35 +54,44 @@ const mockBookings: Booking[] = [
 ];
 
 
-export default function OngoingServicesPage() {
+export default function ProviderDashboardPage() {
+  const { profile } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // In a real app, you would fetch this data from your API
-    setBookings(mockBookings);
+    // and filter by the current provider's name or ID.
+    if (profile) {
+        const providerName = profile.name; // e.g., 'Quality First Sparkle'
+        const assignedBookings = mockBookings.filter(b => b.provider === providerName);
+        setBookings(assignedBookings);
+    }
     setLoading(false);
-  }, []);
-
+  }, [profile]);
+  
   const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
 
+  if (!profile) {
+    return <p>Loading provider profile...</p>
+  }
+
   return (
-    <>
+    <div className="container mx-auto py-12 px-4 md:px-6">
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-headline font-bold">
-          Ongoing Services
+          {profile.name} Dashboard
         </h1>
         <p className="text-muted-foreground mt-2">
-          Track the status of all cleaning jobs from booking to completion.
+          Here are your assigned cleaning jobs.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
         {loading ? (
             columns.map(status => (
                 <div key={status} className="space-y-4">
                     <Skeleton className="h-8 w-1/2" />
-                    <Skeleton className="h-64 w-full" />
                     <Skeleton className="h-64 w-full" />
                 </div>
             ))
@@ -98,7 +107,7 @@ export default function OngoingServicesPage() {
                     .filter(b => b.status === status)
                     .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                     .map(booking => (
-                      <BookingCard key={booking.id} booking={booking} userRole="admin" />
+                      <BookingCard key={booking.id} booking={booking} userRole="provider" />
                   ))}
                    {bookings.filter(b => b.status === status).length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
@@ -108,6 +117,7 @@ export default function OngoingServicesPage() {
             ))
         )}
       </div>
-    </>
+
+    </div>
   );
 }
