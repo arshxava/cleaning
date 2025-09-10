@@ -15,6 +15,11 @@ import {
   Repeat,
   CreditCard,
   Globe,
+  Plus,
+  Minus,
+  Hash,
+  DoorOpen,
+  Layers,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -41,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useSession } from '@/components/session-provider';
+import { Input } from '@/components/ui/input';
 
 const steps = [
   { id: 1, name: 'Service', icon: Sparkles },
@@ -56,9 +62,17 @@ const timeSlots = [
   '05:00 PM - 07:00 PM',
 ];
 
+const serviceBasePrices = {
+  'Standard Clean': 30,
+  'Deep Clean': 50,
+  'Move-In/Out Clean': 70,
+};
+
 type BuildingData = {
   _id: string;
   name: string;
+  floors: number;
+  roomTypes: { name: string }[];
 };
 
 export default function BookingPage() {
@@ -67,8 +81,16 @@ export default function BookingPage() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
+
   const [building, setBuilding] = useState<string>();
-  const [service, setService] = useState<string>();
+  const [floor, setFloor] = useState<string>();
+  const [apartmentType, setApartmentType] = useState<string>();
+  const [apartmentNumber, setApartmentNumber] = useState('');
+  const [roomCount, setRoomCount] = useState(1);
+  const [service, setService] = useState<keyof typeof serviceBasePrices | undefined>();
+  const [price, setPrice] = useState(0);
+
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
   const [frequency, setFrequency] = useState<string>();
@@ -88,7 +110,25 @@ export default function BookingPage() {
     };
     fetchBuildings();
   }, []);
+  
+  const handleBuildingChange = (buildingId: string) => {
+      const buildingData = buildings.find(b => b._id === buildingId);
+      setSelectedBuilding(buildingData || null);
+      setBuilding(buildingData?.name || '');
+      setFloor(undefined);
+      setApartmentType(undefined);
+  }
 
+  useEffect(() => {
+    if (service && roomCount > 0) {
+      const basePrice = serviceBasePrices[service] || 0;
+      // Example pricing logic: base price + $10 for each additional room
+      const calculatedPrice = basePrice + (roomCount - 1) * 10;
+      setPrice(calculatedPrice);
+    } else {
+      setPrice(0);
+    }
+  }, [service, roomCount]);
 
   const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
   const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
@@ -109,12 +149,16 @@ export default function BookingPage() {
                 userId: user.uid,
                 userName: profile.name,
                 building: building,
+                floor: floor,
+                apartmentType: apartmentType,
+                apartmentNumber: apartmentNumber,
+                roomCount: roomCount,
                 service: service,
                 date: format(date, 'yyyy-MM-dd'),
                 time: time,
-                timezone: 'America/New_York', // Hardcoded timezone
                 frequency: frequency,
-                roomType: profile.roomSize, // Assuming room size is part of the user profile
+                price: price,
+                roomType: profile.roomSize, 
             }),
         });
 
@@ -127,13 +171,18 @@ export default function BookingPage() {
             description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
         });
         
-        // Reset state and move to first step
+        // Reset state
         setCurrentStep(1);
         setBuilding(undefined);
+        setFloor(undefined);
+        setApartmentType(undefined);
+        setApartmentNumber('');
+        setRoomCount(1);
         setService(undefined);
         setDate(undefined);
         setTime(undefined);
         setFrequency(undefined);
+        setSelectedBuilding(null);
 
     } catch (error) {
         console.error('Booking error:', error);
@@ -144,6 +193,8 @@ export default function BookingPage() {
   };
   
   const progressValue = ((currentStep - 1) / (steps.length - 1)) * 100;
+  
+  const isStep1Complete = building && floor && apartmentType && apartmentNumber && service && roomCount > 0;
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
@@ -183,11 +234,11 @@ export default function BookingPage() {
 
         <CardContent className="min-h-[300px]">
           {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <Label>School/Building</Label>
-                 <Select onValueChange={setBuilding} value={building} disabled={!profile}>
-                  <div className="relative mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                 <Label>School/Building</Label>
+                 <Select onValueChange={handleBuildingChange} value={selectedBuilding?._id} disabled={!profile}>
+                  <div className="relative">
                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <SelectTrigger className="pl-10">
                       <SelectValue placeholder="Select your school or residence" />
@@ -195,15 +246,59 @@ export default function BookingPage() {
                   </div>
                   <SelectContent>
                     {buildings.length > 0 ? buildings.map((b) => (
-                        <SelectItem key={b._id} value={b.name}>{b.name}</SelectItem>
+                        <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
                     )) : <SelectItem value="loading" disabled>Loading buildings...</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+
+               <div className="space-y-4">
+                 <Label>Floor Number</Label>
+                 <Select onValueChange={setFloor} value={floor} disabled={!selectedBuilding}>
+                  <div className="relative">
+                    <Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="Select your floor" />
+                    </SelectTrigger>
+                  </div>
+                  <SelectContent>
+                    {selectedBuilding ? Array.from({ length: selectedBuilding.floors }, (_, i) => i + 1).map(f => (
+                        <SelectItem key={f} value={f.toString()}>{f}</SelectItem>
+                    )) : <SelectItem value="loading" disabled>Select building first</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-4">
+                <Label>Apartment Type</Label>
+                <Select onValueChange={setApartmentType} value={apartmentType} disabled={!selectedBuilding}>
+                  <div className="relative">
+                    <DoorOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="Select apartment type" />
+                    </SelectTrigger>
+                  </div>
+                  <SelectContent>
+                    {selectedBuilding?.roomTypes.map((rt, i) => (
+                        <SelectItem key={i} value={rt.name}>{rt.name}</SelectItem>
+                    ))}
+                    {!selectedBuilding && <SelectItem value="loading" disabled>Select building first</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-4">
+                <Label>Apartment Number</Label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input className="pl-10" placeholder="e.g., 401B" value={apartmentNumber} onChange={(e) => setApartmentNumber(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <Label>Service Type</Label>
-                <Select onValueChange={setService} value={service}>
-                  <div className="relative mt-2">
+                <Select onValueChange={(value: keyof typeof serviceBasePrices) => setService(value)} value={service}>
+                  <div className="relative">
                     <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <SelectTrigger className="pl-10">
                       <SelectValue placeholder="Select a cleaning service" />
@@ -216,6 +311,16 @@ export default function BookingPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-4">
+                  <Label>Number of Rooms</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={() => setRoomCount(Math.max(1, roomCount - 1))}><Minus className="h-4 w-4" /></Button>
+                    <Input type="number" className="w-16 text-center" value={roomCount} readOnly />
+                    <Button variant="outline" size="icon" onClick={() => setRoomCount(roomCount + 1)}><Plus className="h-4 w-4" /></Button>
+                  </div>
+              </div>
+
             </div>
           )}
 
@@ -228,7 +333,7 @@ export default function BookingPage() {
                 className="rounded-md border"
                 disabled={(day) => day < new Date(new Date().setDate(new Date().getDate() - 1))}
               />
-              <div className="grid grid-cols-1 gap-2 self-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 self-start">
                 {timeSlots.map((slot) => (
                   <Button
                     key={slot}
@@ -264,29 +369,49 @@ export default function BookingPage() {
           )}
 
           {currentStep === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <h3 className="font-semibold">Review Your Booking</h3>
               <Card>
-                <CardContent className="p-6 space-y-4 text-sm">
+                <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Building:</span>
-                    <span className="font-medium">{building || 'Not selected'}</span>
+                    <span className="font-medium text-right">{building || 'Not selected'}</span>
+                  </div>
+                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Floor:</span>
+                    <span className="font-medium text-right">{floor || 'Not selected'}</span>
+                  </div>
+                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Apt Type:</span>
+                    <span className="font-medium text-right">{apartmentType || 'Not selected'}</span>
+                  </div>
+                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Apt Number:</span>
+                    <span className="font-medium text-right">{apartmentNumber || 'Not selected'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Service:</span>
-                    <span className="font-medium">{service || 'Not selected'}</span>
+                    <span className="font-medium text-right">{service || 'Not selected'}</span>
+                  </div>
+                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rooms:</span>
+                    <span className="font-medium text-right">{roomCount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Date:</span>
-                    <span className="font-medium">{date ? format(date, 'PPP') : 'Not selected'}</span>
+                    <span className="font-medium text-right">{date ? format(date, 'PPP') : 'Not selected'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Time:</span>
-                    <span className="font-medium">{time || 'Not selected'}</span>
+                    <span className="font-medium text-right">{time || 'Not selected'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Frequency:</span>
-                    <span className="font-medium">{frequency || 'Not selected'}</span>
+                    <span className="font-medium text-right">{frequency || 'Not selected'}</span>
+                  </div>
+                  <div className="flex justify-between md:col-span-2 text-lg font-bold border-t pt-4 mt-2">
+                    <span className="text-primary">Total:</span>
+                    <span className="text-primary">${price.toFixed(2)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -298,11 +423,11 @@ export default function BookingPage() {
 
         <CardFooter className="flex justify-between">
           <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
-            <ChevronLeft className="mr-2" /> Previous
+            <ChevronLeft /> Previous
           </Button>
           {currentStep < steps.length ? (
-            <Button onClick={nextStep} disabled={ (currentStep === 1 && (!building || !service)) || (currentStep === 2 && (!date || !time)) || (currentStep === 3 && !frequency) }>
-              Next <ChevronRight className="ml-2" />
+            <Button onClick={nextStep} disabled={ (currentStep === 1 && !isStep1Complete) || (currentStep === 2 && (!date || !time)) || (currentStep === 3 && !frequency) }>
+              Next <ChevronRight />
             </Button>
           ) : (
             <Button onClick={handleBooking} disabled={isSubmitting}>
@@ -314,7 +439,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    
-
-    
