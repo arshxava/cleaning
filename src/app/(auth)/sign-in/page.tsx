@@ -53,8 +53,8 @@ export default function SignInPage() {
       // Fetch user profile to check role
       const response = await fetch(`/api/users/${user.uid}`);
       
+      // If the profile doesn't exist or fetch fails, they are a regular user.
       if (!response.ok) {
-        // If profile doesn't exist, treat as regular user.
         toast({
           title: 'Signed In Successfully!',
           description: "Welcome back! Redirecting to your dashboard.",
@@ -67,7 +67,7 @@ export default function SignInPage() {
 
       toast({
         title: 'Signed In Successfully!',
-        description: "Welcome back! You're now logged in.",
+        description: `Welcome back, ${profile.role}! You're now logged in.`,
       });
 
       if (profile?.role === 'admin') {

@@ -21,16 +21,18 @@ const adminRoutePrefix = '/admin';
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // This now represents the combined loading state of auth and profile
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // Start loading whenever auth state changes
       if (firebaseUser) {
         if (!firebaseUser.emailVerified && pathname !== '/verify-email') {
           setUser(null);
           setProfile(null);
+          setLoading(false);
         } else {
           setUser(firebaseUser);
           try {
@@ -39,66 +41,59 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               const profileData = await response.json();
               setProfile(profileData);
             } else {
-              setProfile(null); // Explicitly set profile to null if fetch fails
+              setProfile(null);
             }
           } catch (e) {
             setProfile(null);
             console.error("Failed to fetch user profile", e);
+          } finally {
+            setLoading(false); // Stop loading once user and profile are processed
           }
         }
       } else {
         setUser(null);
         setProfile(null);
+        setLoading(false); // Stop loading if no user
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [pathname]);
 
   useEffect(() => {
-    if (loading) return; // Don't do anything until auth state is resolved
+    // Don't do anything until auth state and profile fetch are fully resolved
+    if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)));
     const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
 
-    // If there's no user and the path is not public, redirect to sign-in
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
     if (user) {
-      // If there is a user, and we have their profile
-      if (profile) {
-        // If they are on an admin route but are not an admin, redirect
-        if (pathIsAdmin && profile.role !== 'admin') {
+      // If user is on an auth page, redirect them away
+      if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
+        if (profile?.role === 'admin') {
+          router.push('/admin/complaints');
+        } else {
           router.push('/dashboard');
-          return;
         }
-        // If they are on a sign-in/sign-up page, redirect them to their respective dashboard
-        if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
-          if (profile.role === 'admin') {
-            router.push('/admin/complaints');
-          } else {
-            router.push('/dashboard');
-          }
-          return;
-        }
-      } else if (!pathIsPublic && pathname !== '/verify-email') {
-         // If user exists but profile fetch failed or is pending, and we are not on a public page
-         // This can happen briefly. For now, we assume they are a regular user if profile is missing.
-         // If they land on an auth page, redirect to dashboard.
-        if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
-            router.push('/dashboard');
-        }
+        return;
+      }
+      
+      // If user is on an admin route but is not an admin, redirect
+      if (pathIsAdmin && profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
       }
     }
   }, [user, profile, loading, router, pathname]);
 
-  // Show a loading skeleton while the session is being established.
+  // Show a loading skeleton on protected routes while the session is being established.
   const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
-  if (loading && !isAuthPage) {
+  if (loading && !isAuthPage && !publicRoutes.includes(pathname)) {
     return (
         <div className="container mx-auto p-4">
             <div className="space-y-4">
