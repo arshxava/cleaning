@@ -45,7 +45,11 @@ const Header = () => {
 
   const closeSheet = () => setSheetOpen(false);
   
-  const visibleLinks = navLinks.filter(link => !link.protected || (link.protected && user));
+  const visibleLinks = navLinks.filter(link => {
+    if (profile?.role === 'admin') return false; // Hide all standard links for admins
+    return !link.protected || (link.protected && user);
+  });
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
