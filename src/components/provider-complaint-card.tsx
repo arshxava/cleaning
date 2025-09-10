@@ -18,19 +18,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Textarea } from './ui/textarea';
+import type { Complaint } from '@/lib/types';
+import Image from 'next/image';
 
-export type Complaint = {
-  id: string;
-  user: string;
-  building: string;
-  date: string;
-  text: string;
-  status: 'Pending' | 'Resolved';
-  provider: string;
-  lastResponseHours: number;
-};
+type ProviderComplaintCardProps = Complaint & {
+    lastResponseHours: number;
+}
 
-export function ProviderComplaintCard({ complaint }: { complaint: Complaint }) {
+export function ProviderComplaintCard({ complaint }: { complaint: ProviderComplaintCardProps }) {
   const isOverdue = complaint.lastResponseHours > 24;
 
   return (
@@ -60,8 +55,23 @@ export function ProviderComplaintCard({ complaint }: { complaint: Complaint }) {
             <span>{complaint.building}</span>
         </div>
         <p className="text-muted-foreground bg-slate-100 p-4 rounded-md border">
-          "{complaint.text}"
+          "{complaint.complaint}"
         </p>
+
+        {complaint.imageUrl && (
+          <div className="mt-4">
+            <p className="text-sm font-medium mb-2 text-muted-foreground">Attached Image:</p>
+            <Image
+              src={complaint.imageUrl}
+              alt="Complaint image"
+              width={200}
+              height={200}
+              className="rounded-md object-cover border"
+              data-ai-hint="complaint photo"
+            />
+          </div>
+        )}
+
         <div>
              <Textarea placeholder={`Write your response to ${complaint.user}...`}/>
         </div>

@@ -42,6 +42,17 @@ export type Booking = {
   createdAt: any;
 };
 
-    
-
+export type Complaint = {
+  _id: string;
+  userId: string;
+  user: string;
+  building: string;
+  complaint: string; // The text of the complaint
+  imageUrl?: string;
+  bookingId?: string;
+  date: any;
+  status: 'Pending' | 'Resolved';
+  provider: string;
+  lastResponseTimestamp?: any;
+};
     

@@ -9,14 +9,19 @@ import { BookingCard } from '@/components/booking-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquareWarning, Wrench } from 'lucide-react';
 import { ProviderComplaintCard } from '@/components/provider-complaint-card';
-import type { Complaint } from '@/app/admin/complaints/complaint-analysis-card';
 import { Booking } from '@/lib/types';
+import type { Complaint } from '@/lib/types';
+
+
+type ProviderComplaintCardProps = Complaint & {
+    lastResponseHours: number;
+}
 
 
 export default function ProviderDashboardPage() {
   const { profile } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [complaints, setComplaints] = useState<ProviderComplaintCardProps[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProviderData = async () => {
@@ -34,8 +39,15 @@ export default function ProviderDashboardPage() {
         }
 
         if (complaintsRes.ok) {
-            const allComplaints = await complaintsRes.json();
-            setComplaints(allComplaints.filter((c: Complaint) => c.provider === profile.name));
+            const allComplaints: Complaint[] = await complaintsRes.json();
+            const providerComplaints = allComplaints.filter((c) => c.provider === profile.name);
+            const formattedComplaints: ProviderComplaintCardProps[] = providerComplaints.map((c) => ({
+              ...c,
+              lastResponseHours: c.lastResponseTimestamp
+                ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
+                : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000),
+            }));
+            setComplaints(formattedComplaints);
         }
 
     } catch (error) {
@@ -129,7 +141,7 @@ export default function ProviderDashboardPage() {
                     complaints
                      .filter(c => c.status === 'Pending')
                      .map((complaint) => (
-                        <ProviderComplaintCard key={complaint.id} complaint={complaint} />
+                        <ProviderComplaintCard key={complaint._id} complaint={complaint} />
                     ))
                 ) : (
                     <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>

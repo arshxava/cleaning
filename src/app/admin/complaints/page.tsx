@@ -4,12 +4,17 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { ComplaintAnalysisCard } from './complaint-analysis-card';
-import type { Complaint } from './complaint-analysis-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Complaint } from '@/lib/types';
+
+
+type ComplaintCardProps = Complaint & {
+    lastResponseHours: number;
+}
 
 
 export default function AdminComplaintsPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [complaints, setComplaints] = useState<ComplaintCardProps[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,15 +25,9 @@ export default function AdminComplaintsPage() {
         if (!response.ok) {
           throw new Error('Failed to fetch complaints');
         }
-        const data = await response.json();
-        const formattedComplaints: Complaint[] = data.map((c: any) => ({
-          id: c._id,
-          user: c.user,
-          building: c.building,
-          date: c.date,
-          text: c.complaint,
-          status: c.status,
-          provider: c.provider,
+        const data: Complaint[] = await response.json();
+        const formattedComplaints: ComplaintCardProps[] = data.map((c) => ({
+          ...c,
           lastResponseHours: c.lastResponseTimestamp
             ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
             // Calculate hours since complaint if no response yet
@@ -86,7 +85,7 @@ export default function AdminComplaintsPage() {
           </>
         ) : pendingComplaints.length > 0 ? (
           pendingComplaints.map((complaint) => (
-            <ComplaintAnalysisCard key={complaint.id} complaint={complaint} />
+            <ComplaintAnalysisCard key={complaint._id} complaint={complaint} />
           ))
         ) : (
           <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
@@ -102,11 +101,11 @@ export default function AdminComplaintsPage() {
                 <Skeleton className="h-24 w-full" />
             ) : resolvedComplaintsData.length > 0 ? (
               resolvedComplaintsData.map((complaint) => (
-                <div key={complaint.id} className="p-6 bg-card rounded-lg border opacity-60">
+                <div key={complaint._id} className="p-6 bg-card rounded-lg border opacity-60">
                     <div className="flex justify-between items-start">
                         <div>
                         <h3 className="font-bold">{complaint.user} - {complaint.building}</h3>
-                        <p className="text-sm text-muted-foreground">{complaint.id}</p>
+                        <p className="text-sm text-muted-foreground">{complaint._id}</p>
                         </div>
                         <Badge variant="secondary">Resolved</Badge>
                     </div>

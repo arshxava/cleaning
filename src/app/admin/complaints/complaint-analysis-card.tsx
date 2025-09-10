@@ -31,17 +31,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getComplaintAnalysis } from './actions';
 import { useToast } from '@/hooks/use-toast';
+import type { Complaint } from '@/lib/types';
+import Image from 'next/image';
 
-export type Complaint = {
-  id: string;
-  user: string;
-  building: string;
-  date: string;
-  text: string;
-  status: 'Pending' | 'Resolved';
-  provider: string;
-  lastResponseHours: number;
-};
+type ComplaintCardProps = Complaint & {
+    lastResponseHours: number;
+}
 
 type AnalysisResult = {
   success: boolean;
@@ -49,7 +44,7 @@ type AnalysisResult = {
   error?: string;
 };
 
-export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
+export function ComplaintAnalysisCard({ complaint }: { complaint: ComplaintCardProps }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
@@ -80,7 +75,7 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="font-headline text-xl">
-              Complaint #{complaint.id}
+              Complaint #{complaint._id}
             </CardTitle>
             <CardDescription>
               {new Date(complaint.date).toLocaleString()}
@@ -113,8 +108,21 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
           </div>
         </div>
         <p className="text-muted-foreground bg-slate-100 p-4 rounded-md border">
-          {complaint.text}
+          {complaint.complaint}
         </p>
+
+         {complaint.imageUrl && (
+          <div className="mt-4">
+            <Image
+              src={complaint.imageUrl}
+              alt="Complaint image"
+              width={200}
+              height={200}
+              className="rounded-md object-cover"
+              data-ai-hint="complaint photo"
+            />
+          </div>
+        )}
 
         <Accordion type="single" collapsible className="w-full mt-4">
           <AccordionItem value="item-1">
@@ -129,7 +137,7 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
                 <input
                   type="hidden"
                   name="complaintText"
-                  value={complaint.text}
+                  value={complaint.complaint}
                 />
                 <div>
                   <Label htmlFor="timeSinceLastResponse">
