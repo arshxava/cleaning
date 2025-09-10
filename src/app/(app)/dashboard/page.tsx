@@ -23,29 +23,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/components/session-provider';
 
-const bookings = [
-  {
-    id: 'B-789',
-    service: 'Standard Clean',
-    date: '2024-08-15T10:00:00Z',
-    status: 'Upcoming',
-  },
-  {
-    id: 'B-788',
-    service: 'Deep Clean',
-    date: '2024-07-15T10:00:00Z',
-    status: 'Completed',
-  },
-];
+// Static data removed
 
-const complaints = [
-  {
-    id: 'C-101',
-    subject: 'Incomplete Cleaning',
-    date: '2024-07-28T10:00:00Z',
-    status: 'Pending',
-  },
-];
+const bookings: any[] = [];
+const complaints: any[] = [];
+
 
 export default function DashboardPage() {
   const { user } = useSession();
@@ -89,10 +71,6 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="text-sm space-y-3">
-               <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{'Chestnut Residence'}</span>
-                </div>
               <Button variant="outline" className="w-full mt-2">Edit Profile</Button>
             </CardContent>
           </Card>
@@ -115,7 +93,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-4">
-                {bookings.map((booking) => (
+                {bookings.length === 0 ? (
+                    <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
+                        <p className='mb-4'>You have no upcoming or past bookings.</p>
+                         <Button asChild>
+                            <Link href="/book">Book Your First Cleaning</Link>
+                        </Button>
+                    </div>
+                ) : bookings.map((booking) => (
                   <li
                     key={booking.id}
                     className="flex flex-wrap items-center justify-between gap-4 p-4 border rounded-lg"
@@ -135,9 +120,6 @@ export default function DashboardPage() {
                      </Badge>
                   </li>
                 ))}
-                 {bookings.length === 0 && (
-                        <p className='text-sm text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>You have no upcoming or past bookings.</p>
-                    )}
               </ul>
             </CardContent>
           </Card>
@@ -157,7 +139,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 <ul className="space-y-4">
-                    {complaints.map((complaint) => (
+                    {complaints.length === 0 ? (
+                        <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
+                            <p className='mb-4'>You have no submitted complaints.</p>
+                            <Button asChild variant="secondary">
+                                <Link href="/complaints">Submit a Complaint</Link>
+                            </Button>
+                        </div>
+                    ) : complaints.map((complaint) => (
                     <li
                         key={complaint.id}
                         className="flex items-center justify-between p-4 border rounded-lg"
@@ -176,9 +165,6 @@ export default function DashboardPage() {
                         </div>
                     </li>
                     ))}
-                    {complaints.length === 0 && (
-                        <p className='text-sm text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>You have no submitted complaints.</p>
-                    )}
                 </ul>
             </CardContent>
           </Card>
