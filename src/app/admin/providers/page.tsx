@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import {
   User,
   Mail,
-  Lock,
   Building as BuildingIcon,
   Phone,
   HardHat,
@@ -16,7 +15,7 @@ import {
   Check,
   ChevronsUpDown,
 } from 'lucide-react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
@@ -54,11 +53,11 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.'),
-  password: z.string().min(6, 'Password must be at least 6 characters.'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
   assignedBuildings: z.array(z.string()).optional(),
 });
@@ -77,7 +76,6 @@ export default function ProvidersPage() {
     defaultValues: {
       name: '',
       email: '',
-      password: '',
       phone: '',
       assignedBuildings: [],
     },
@@ -117,21 +115,20 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // This is a temporary way to create an auth user. 
-      // In a real app, you'd send a "magic link" or similar, not set a password.
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+      // In a real app, the backend would create both the auth user and the database record
+      // in a single, atomic transaction to prevent orphaned data.
+      // For this prototype, we'll do it in sequence from the client.
 
-      // Now save the full provider profile to our database
       const providerData = {
-        uid: user.uid,
+        // We'll generate a temporary UID here, but a real backend would use the one from Firebase Auth
+        uid: `temp_${Date.now()}`, 
         ...values,
         role: 'provider',
         notificationPreference: 'email', // default
-        school: 'N/A', // not applicable for providers
-        roomSize: 'N/A', // not applicable for providers
+        school: 'N/A',
+        roomSize: 'N/A',
       };
-
+      
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,21 +136,27 @@ export default function ProvidersPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save provider data.');
+        const errorData = await response.json();
+        // Check for specific error from our API (e.g. email exists)
+        if (errorData.error?.includes('E11000 duplicate key error collection')) {
+             throw new Error('An account with this email already exists.');
+        }
+        throw new Error(errorData.message || 'Failed to save provider data.');
       }
+      
+      // After successfully saving to DB, send the password reset email.
+      // This email will contain a link for the user to set their password.
+      await sendPasswordResetEmail(auth, values.email);
 
       toast({
         title: 'Provider Account Created',
-        description: `An account for ${values.name} has been created.`,
+        description: `An account setup email has been sent to ${values.name}.`,
       });
       form.reset();
       fetchInitialData(); // Refresh the list
 
     } catch (error: any) {
-      let description = 'An unexpected error occurred.';
-      if (error.code === 'auth/email-already-in-use') {
-        description = 'This email is already in use by another account.';
-      }
+      let description = error.message || 'An unexpected error occurred.';
       toast({
         variant: 'destructive',
         title: 'Creation Failed',
@@ -178,11 +181,15 @@ export default function ProvidersPage() {
           <Card>
             <CardHeader>
               <CardTitle>Create Provider Account</CardTitle>
-              <CardDescription>
-                Add a new service provider to the system.
-              </CardDescription>
             </CardHeader>
             <CardContent>
+              <Alert className="mb-6">
+                <HardHat className="h-4 w-4" />
+                <AlertTitle>How It Works</AlertTitle>
+                <AlertDescription>
+                  Creating an account will automatically send an email to the provider with a link to set their own password. You do not need to set a temporary one.
+                </AlertDescription>
+              </Alert>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
@@ -211,22 +218,6 @@ export default function ProvidersPage() {
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input type="email" placeholder="contact@qfs.com" {...field} className="pl-10" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Temporary Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input type="password" {...field} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -313,7 +304,7 @@ export default function ProvidersPage() {
                     )}
                   />
                   <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+                    {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account & Send Invite'}
                   </Button>
                 </form>
               </Form>

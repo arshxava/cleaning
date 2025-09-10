@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
 import type { UserProfile } from '@/lib/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -37,6 +38,9 @@ const formSchema = z.object({
 export default function SignInPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get('mode');
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -107,6 +111,14 @@ export default function SignInPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+           {mode === 'resetPassword' && (
+            <Alert className="mb-6 bg-green-50 border-green-200">
+              <AlertTitle className="text-green-800">Password Reset Successful</AlertTitle>
+              <AlertDescription className="text-green-700">
+                You can now sign in with your new password.
+              </AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField

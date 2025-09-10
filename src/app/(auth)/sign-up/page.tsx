@@ -82,7 +82,7 @@ export default function SignUpPage() {
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'json',
         },
         body: JSON.stringify({
           uid: user.uid,

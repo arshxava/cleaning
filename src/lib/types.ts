@@ -1,4 +1,5 @@
 
+
 export type UserProfile = {
   uid: string;
   name: string;
@@ -8,6 +9,6 @@ export type UserProfile = {
   school: string;
   roomSize: string;
   role: 'user' | 'admin' | 'provider';
-  createdAt: Date;
+  createdAt: any; // Changed to any to accommodate server-side Date and client-side string
   assignedBuildings?: string[]; // Array of building IDs
 };
