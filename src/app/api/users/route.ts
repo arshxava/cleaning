@@ -10,14 +10,18 @@ import 'dotenv/config';
 // Initialize Firebase Admin SDK
 if (!getApps().length) {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    throw new Error('Missing FIREBASE_SERVICE_ACCOUNT environment variable');
+    // This will not throw during build time, but will be an issue at runtime if not set.
+    console.warn('Missing FIREBASE_SERVICE_ACCOUNT environment variable. API routes requiring admin privileges will fail.');
+  } else {
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      initializeApp({
+        credential: credential.cert(serviceAccount),
+      });
+    } catch (e) {
+      console.error('Failed to parse or initialize Firebase Admin SDK', e);
+    }
   }
-  
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
-  initializeApp({
-    credential: credential.cert(serviceAccount),
-  });
 }
 
 const userSchema = z.object({
@@ -42,6 +46,8 @@ export async function POST(request: Request) {
     const usersCollection = db.collection('users');
 
     // --- Path for Regular User Sign-up ---
+    // The user is already created in Firebase Auth on the client-side.
+    // We just need to create their profile in our database.
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
@@ -49,16 +55,21 @@ export async function POST(request: Request) {
       
       const existingUser = await usersCollection.findOne({ uid: userData.uid });
       if (existingUser) {
+        // This case should ideally not happen in a normal sign-up flow, but it's good practice to handle it.
         return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
       }
 
       const dataToInsert = { ...userData, createdAt: new Date() };
       const result = await usersCollection.insertOne(dataToInsert);
       
-      return NextResponse.json({ message: 'User profile created successfully.', uid: result.insertedId }, { status: 201 });
+      // Ensure we return the user object, not the full result
+      const createdUser = await usersCollection.findOne({_id: result.insertedId});
+
+      return NextResponse.json(createdUser, { status: 201 });
     }
 
     // --- Path for Admin Creating a Provider ---
+    // The entire user creation (Auth and DB) is handled on the server.
     if (userData.role === 'provider') {
        const existingProfile = await usersCollection.findOne({ email: userData.email });
       if (existingProfile) {
@@ -79,7 +90,7 @@ export async function POST(request: Request) {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             displayName: userData.name,
-            emailVerified: true, 
+            emailVerified: true, // Providers are trusted, so we can auto-verify email.
           });
           uid = newUserRecord.uid;
         } else {
@@ -89,9 +100,10 @@ export async function POST(request: Request) {
       }
       
       const dataToInsert = { ...userData, uid: uid, createdAt: new Date() };
-      await usersCollection.insertOne(dataToInsert);
+      const result = await usersCollection.insertOne(dataToInsert);
+      const createdUser = await usersCollection.findOne({_id: result.insertedId});
 
-      return NextResponse.json({ message: 'Provider created successfully', uid: uid }, { status: 201 });
+      return NextResponse.json(createdUser, { status: 201 });
     }
     
     // Fallback for any other roles or invalid requests
