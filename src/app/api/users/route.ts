@@ -22,13 +22,8 @@ export async function POST(request: Request) {
 
     const usersCollection = db.collection('users');
     
-    // Ensure the uid is used as the document's primary key
-    const { uid, ...restOfUserData } = userData;
-
     const result = await usersCollection.insertOne({
-        _id: uid, // Use Firebase UID as the document ID
-        uid: uid,
-        ...restOfUserData,
+        ...userData,
         createdAt: new Date(),
     });
 
