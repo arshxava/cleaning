@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, Sparkles, LogOut } from 'lucide-react';
+import { Menu, Sparkles, LogOut, Shield } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -20,7 +20,7 @@ const navLinks = [
 
 const Header = () => {
   const [isSheetOpen, setSheetOpen] = useState(false);
-  const { user } = useSession();
+  const { user, profile } = useSession();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -66,6 +66,15 @@ const Header = () => {
               {link.label}
             </Link>
           ))}
+           {profile?.role === 'admin' && (
+              <Link
+                href="/admin/complaints"
+                className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Shield className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
         </nav>
         <div className="ml-auto flex items-center gap-4">
            {user ? (
@@ -109,6 +118,16 @@ const Header = () => {
                       {link.label}
                     </Link>
                   ))}
+                   {profile?.role === 'admin' && (
+                    <Link
+                        href="/admin/complaints"
+                        className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                        onClick={closeSheet}
+                    >
+                        <Shield className="h-4 w-4" />
+                        Admin
+                    </Link>
+                    )}
                 </nav>
               </div>
             </SheetContent>

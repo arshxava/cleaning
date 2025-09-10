@@ -16,7 +16,7 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 const publicRoutes = ['/sign-in', '/sign-up', '/verify-email'];
-const adminRoutes = ['/admin'];
+const adminRoutePrefix = '/admin';
 
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -28,19 +28,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
       if (user) {
         if (!user.emailVerified && pathname !== '/verify-email') {
             setUser(null);
             setProfile(null);
         } else {
              setUser(user);
-             // Fetch user profile from our API
-             const response = await fetch(`/api/users/${user.uid}`);
-             if (response.ok) {
-               const profileData = await response.json();
-               setProfile(profileData);
-             } else {
-               setProfile(null);
+             try {
+                const response = await fetch(`/api/users/${user.uid}`);
+                if (response.ok) {
+                  const profileData = await response.json();
+                  setProfile(profileData);
+                } else {
+                  setProfile(null);
+                }
+             } catch (e) {
+                setProfile(null);
+                console.error("Failed to fetch user profile", e);
              }
         }
       } else {
@@ -56,15 +61,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
-    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+    const pathIsPublic = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
+    const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
 
-    if (isAdminRoute && profile?.role !== 'admin') {
-       router.push('/dashboard'); // Redirect non-admins from admin routes
+    if (pathIsAdmin && profile?.role !== 'admin') {
+       router.push('/dashboard');
        return;
     }
 
-    if (!user && !isPublicRoute) {
+    if (!user && !pathIsPublic) {
       router.push('/sign-in');
     } else if (user && (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up'))) {
        router.push('/dashboard');
