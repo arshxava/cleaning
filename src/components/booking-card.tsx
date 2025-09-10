@@ -12,8 +12,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Sparkles, User, CheckCircle, Upload, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Calendar, Sparkles, User, CheckCircle, Upload, Trash2, Loader2 } from 'lucide-react';
+import { useRef, useState, useTransition } from 'react';
 import { Input } from './ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Booking } from '@/lib/types';
@@ -28,10 +28,42 @@ type BookingCardProps = {
 export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) => {
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isUploading, startUploading] = useTransition();
 
     // Refs for file inputs
     const beforeImageRef = useRef<HTMLInputElement>(null);
     const afterImageRef = useRef<HTMLInputElement>(null);
+
+    const getSignature = async () => {
+        const response = await fetch('/api/cloudinary/sign');
+        const data = await response.json();
+        const { signature, timestamp } = data;
+        return { signature, timestamp };
+    };
+
+    const uploadImageToCloudinary = async (file: File) => {
+        const { signature, timestamp } = await getSignature();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('signature', signature);
+        formData.append('timestamp', timestamp);
+        formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!);
+
+        const endpoint = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Image upload failed.');
+        }
+
+        const data = await response.json();
+        return data.secure_url;
+    };
+
 
     const updateBooking = async (updateData: Partial<Booking>) => {
         setIsUpdating(true);
@@ -54,29 +86,30 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
             setIsUpdating(false);
         }
     }
-
-    // Mock image upload handlers - in a real app this would upload to a cloud storage service
-    const handleBeforeImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (files && files.length > 0) {
-            // Using picsum as placeholder for uploaded images
-            const newImageUrls = Array.from(files).map((_, i) => `https://picsum.photos/seed/${booking._id}-before-${booking.beforeImages.length + i}/${600}/${400}`);
-            updateBooking({
-                beforeImages: [...booking.beforeImages, ...newImageUrls].slice(0, 5),
-                status: 'In Process'
-            });
-        }
-    };
     
-    const handleAfterImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-         const files = event.target.files;
-         if (files && files.length > 0) {
-            const newImageUrls = Array.from(files).map((_, i) => `https://picsum.photos/seed/${booking._id}-after-${booking.afterImages.length + i}/${600}/${400}`);
-            updateBooking({
-                afterImages: [...booking.afterImages, ...newImageUrls].slice(0, 5),
-                status: 'Completed'
-            });
-        }
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'before' | 'after') => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        startUploading(async () => {
+            try {
+                const uploadPromises = Array.from(files).map(uploadImageToCloudinary);
+                const newImageUrls = await Promise.all(uploadPromises);
+
+                const existingImages = type === 'before' ? booking.beforeImages : booking.afterImages;
+                const updatedImages = [...existingImages, ...newImageUrls].slice(0, 5);
+                
+                const updateData: Partial<Booking> = {
+                    ...(type === 'before' && { beforeImages: updatedImages, status: 'In Process' }),
+                    ...(type === 'after' && { afterImages: updatedImages, status: 'Completed' }),
+                };
+                
+                await updateBooking(updateData);
+                
+            } catch (error) {
+                 toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload images to Cloudinary.' });
+            }
+        });
     };
 
     const removeImage = (type: 'before' | 'after', imageUrl: string) => {
@@ -87,6 +120,8 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
            updateBooking({ afterImages: updatedImages });
        }
     }
+    
+    const isActionDisabled = isUpdating || isUploading;
 
   return (
     <Card className="w-full flex flex-col">
@@ -98,16 +133,17 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
           </CardTitle>
           <Badge variant={booking.status === 'Completed' ? 'default' : 'secondary'}>{booking.status}</Badge>
         </div>
-        <CardDescription>{booking.building} - {booking.roomType}</CardDescription>
+        <CardDescription>{booking.building} - {booking.apartmentType}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm flex-grow">
         <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /><span>{booking.userName}</span></div>
         <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /><span>{new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span></div>
         
         {userRole === 'provider' && booking.status === 'Aligned' && (
-             <Button size="sm" variant="outline" className='w-full' onClick={() => beforeImageRef.current?.click()} disabled={isUpdating}>
-                <Upload className="mr-2 h-4 w-4" /> Start Job & Upload 'Before'
-                <Input ref={beforeImageRef} type="file" accept="image/*" multiple className="hidden" onChange={handleBeforeImageUpload} />
+             <Button size="sm" variant="outline" className='w-full' onClick={() => beforeImageRef.current?.click()} disabled={isActionDisabled}>
+                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {isUploading ? 'Uploading...' : "Start & Upload 'Before'"}
+                <Input ref={beforeImageRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleImageUpload(e, 'before')} />
             </Button>
         )}
 
@@ -118,7 +154,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
                     {booking.beforeImages.map((img, index) => (
                         <div key={index} className="relative group">
                             <Image src={img} alt="Before cleaning" width={150} height={100} className="rounded-md object-cover aspect-[3/2]" data-ai-hint="messy room" />
-                             {userRole === 'provider' && <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage('before', img)} disabled={isUpdating}><Trash2 className='h-3 w-3'/></Button>}
+                             {userRole === 'provider' && <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage('before', img)} disabled={isActionDisabled}><Trash2 className='h-3 w-3'/></Button>}
                         </div>
                     ))}
                 </div>
@@ -126,9 +162,10 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
         )}
         
         {userRole === 'provider' && booking.status === 'In Process' && (
-             <Button size="sm" className='w-full' onClick={() => afterImageRef.current?.click()} disabled={isUpdating}>
-                <CheckCircle className="mr-2 h-4 w-4" /> Complete & Upload 'After'
-                <Input ref={afterImageRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAfterImageUpload} />
+             <Button size="sm" className='w-full' onClick={() => afterImageRef.current?.click()} disabled={isActionDisabled}>
+                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                {isUploading ? 'Uploading...' : "Complete & Upload 'After'"}
+                <Input ref={afterImageRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleImageUpload(e, 'after')} />
             </Button>
         )}
 
@@ -139,7 +176,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
                     {booking.afterImages.map((img, index) => (
                         <div key={index} className="relative group">
                             <Image src={img} alt="After cleaning" width={150} height={100} className="rounded-md object-cover aspect-[3/2]" data-ai-hint="clean room" />
-                            {userRole === 'provider' && <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage('after', img)} disabled={isUpdating}><Trash2 className='h-3 w-3'/></Button>}
+                            {userRole === 'provider' && <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage('after', img)} disabled={isActionDisabled}><Trash2 className='h-3 w-3'/></Button>}
                         </div>
                     ))}
                 </div>
