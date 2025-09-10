@@ -72,9 +72,9 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
 
   return (
     <Card
-      className={
+      className={cn(
         complaint.lastResponseHours > 24 ? 'border-destructive' : ''
-      }
+      )}
     >
       <CardHeader>
         <div className="flex justify-between items-start">
