@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 import { ComplaintAnalysisCard } from './complaint-analysis-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Complaint } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 
 type ComplaintCardProps = Complaint & {
