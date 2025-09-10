@@ -34,19 +34,23 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
     const beforeImageRef = useRef<HTMLInputElement>(null);
     const afterImageRef = useRef<HTMLInputElement>(null);
 
-    const getSignature = async () => {
-        const response = await fetch('/api/cloudinary/sign');
-        const data = await response.json();
-        const { signature, timestamp } = data;
-        return { signature, timestamp };
+    const getSignature = async (paramsToSign: Record<string, any>) => {
+        const response = await fetch('/api/cloudinary/sign', {
+          method: 'POST',
+          body: JSON.stringify({ paramsToSign }),
+        });
+        const { signature } = await response.json();
+        return signature;
     };
 
     const uploadImageToCloudinary = async (file: File) => {
-        const { signature, timestamp } = await getSignature();
+        const timestamp = Math.round(new Date().getTime() / 1000);
+        const signature = await getSignature({ timestamp });
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('signature', signature);
-        formData.append('timestamp', timestamp);
+        formData.append('timestamp', timestamp.toString());
         formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!);
 
         const endpoint = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;

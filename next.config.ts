@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
   },
   env: {
     MONGODB_URI: process.env.MONGODB_URI,
+    NEXT_PUBLIC_CLOUDINARY_API_KEY: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   }
 };
 

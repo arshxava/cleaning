@@ -20,18 +20,17 @@ cloudinary.config({
   secure: true,
 });
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    const body = await request.json();
+    const { paramsToSign } = body;
 
     const signature = cloudinary.utils.api_sign_request(
-      {
-        timestamp: timestamp,
-      },
+      paramsToSign,
       process.env.CLOUDINARY_API_SECRET!
     );
 
-    return NextResponse.json({ timestamp, signature });
+    return NextResponse.json({ signature });
   } catch (error) {
     console.error('Error generating Cloudinary signature:', error);
     return NextResponse.json(
