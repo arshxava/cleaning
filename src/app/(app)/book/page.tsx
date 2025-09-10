@@ -313,6 +313,7 @@ export default function BookingPage() {
                     <span className="text-muted-foreground">Time:</span>
                     <span className="font-medium">{time || 'Not selected'}</span>
                   </div>
+
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Timezone:</span>
                     <span className="font-medium">{timezones.find(tz => tz.value === timezone)?.label || 'Not selected'}</span>
