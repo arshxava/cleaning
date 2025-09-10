@@ -23,6 +23,8 @@ export type Booking = {
   roomType: string;
   service: string;
   date: string;
+  time: string;
+  timezone: string;
   status: BookingStatus;
   provider: string;
   beforeImages: string[];

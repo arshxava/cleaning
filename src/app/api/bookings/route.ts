@@ -12,6 +12,7 @@ const bookingSchema = z.object({
   service: z.string(),
   date: z.string(), // Expecting 'yyyy-MM-dd'
   time: z.string(),
+  timezone: z.string(),
   frequency: z.string(),
 });
 
