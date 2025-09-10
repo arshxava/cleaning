@@ -45,25 +45,27 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
+    // For any user type, first check if they exist in our database by email.
+    const existingUserInDB = await usersCollection.findOne({ email: userData.email });
+    if (existingUserInDB) {
+        return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
+    }
+
     let finalUid = userData.uid;
     
-    // Logic for creating a new provider by an admin
+    // Logic for creating a new provider by an admin, where UID is not passed from client
     if (userData.role === 'provider' && !userData.uid) {
       try {
+        // Create the user in Firebase Auth
         const userRecord = await getAuth().createUser({
           email: userData.email,
           displayName: userData.name,
-          // No password is set here, the provider will set it via a password reset link.
         });
         finalUid = userRecord.uid;
       } catch (error: any) {
+        // If the user already exists in Firebase Auth (e.g. created manually)
         if (error.code === 'auth/email-already-exists') {
-          // If auth user exists, check if a DB record also exists.
-          const existingUser = await usersCollection.findOne({ email: userData.email });
-          if (existingUser) {
-            return NextResponse.json({ message: 'An account with this email already exists.' }, { status: 409 });
-          }
-          // If only auth user exists, get the uid and proceed to create DB record.
+          // Get the existing user's UID to link them in our database.
           const userRecord = await getAuth().getUserByEmail(userData.email);
           finalUid = userRecord.uid;
         } else {
@@ -71,14 +73,8 @@ export async function POST(request: Request) {
         }
       }
     } else if (userData.role === 'user' && !userData.uid) {
-      // This case handles regular user sign-up where UID is passed from the client Firebase SDK
+      // This case handles regular user sign-up where UID must be passed from the client Firebase SDK
       return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
-    }
-    
-    // Check if user already exists in our DB by email, just in case
-    const existingUserInDB = await usersCollection.findOne({ email: userData.email });
-    if (existingUserInDB) {
-        return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
     }
 
     const { password, ...dataToInsert } = {
