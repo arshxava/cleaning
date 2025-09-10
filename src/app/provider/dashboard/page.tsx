@@ -5,86 +5,12 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/components/session-provider';
-import { BookingCard, Booking } from '@/components/booking-card';
+import { BookingCard } from '@/components/booking-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquareWarning, Wrench } from 'lucide-react';
 import { ProviderComplaintCard } from '@/components/provider-complaint-card';
 import type { Complaint } from '@/app/admin/complaints/complaint-analysis-card';
-
-
-const mockBookings: Booking[] = [
-  {
-    id: '1',
-    user: 'Alice Johnson',
-    building: 'Chestnut Residence',
-    roomType: 'Single Dorm',
-    service: 'Deep Clean',
-    date: '2024-08-15',
-    status: 'Aligned',
-    provider: 'Quality First Sparkle',
-    beforeImages: [],
-    afterImages: [],
-  },
-  {
-    id: '2',
-    user: 'Bob Williams',
-    building: 'Place Vanier',
-    roomType: 'Double Dorm',
-    service: 'Standard Clean',
-    date: '2024-08-16',
-    status: 'In Process',
-    provider: 'CleanSweep Inc.',
-    beforeImages: ['https://picsum.photos/seed/before1/600/400'],
-    afterImages: [],
-  },
-  {
-    id: '3',
-    user: 'Charlie Brown',
-    building: 'Royal Victoria College',
-    roomType: 'Bachelor Apartment',
-    service: 'Move-Out Clean',
-    date: '2024-08-12',
-    status: 'Completed',
-    provider: 'Quality First Sparkle',
-    beforeImages: ['https://picsum.photos/seed/before2/600/400', 'https://picsum.photos/seed/before3/600/400'],
-    afterImages: ['https://picsum.photos/seed/after2/600/400'],
-  },
-   {
-    id: '4',
-    user: 'Diana Prince',
-    building: 'Chestnut Residence',
-    roomType: 'Single Dorm',
-    service: 'Standard Clean',
-    date: '2024-08-18',
-    status: 'Aligned',
-    provider: 'CleanSweep Inc.',
-    beforeImages: [],
-    afterImages: [],
-  },
-];
-
-const mockComplaints: Complaint[] = [
-    {
-        id: 'comp1',
-        user: 'Negative Nancy',
-        building: 'Chestnut Residence',
-        date: '2024-08-14',
-        text: 'The cleaner missed a spot under my bed. This is unacceptable! I want a full refund and a personal apology.',
-        status: 'Pending',
-        provider: 'Quality First Sparkle',
-        lastResponseHours: 12,
-    },
-    {
-        id: 'comp2',
-        user: 'Karen Smith',
-        building: 'Royal Victoria College',
-        date: '2024-08-11',
-        text: 'The cleaner was 30 minutes late and tracked mud on my carpet. I have photographic evidence.',
-        status: 'Pending',
-        provider: 'Quality First Sparkle',
-        lastResponseHours: 72,
-    }
-];
+import { Booking } from '@/lib/types';
 
 
 export default function ProviderDashboardPage() {
@@ -93,18 +19,34 @@ export default function ProviderDashboardPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // In a real app, you would fetch this data from your API
-    // and filter by the current provider's name or ID.
-    if (profile) {
-        const providerName = profile.name;
-        const assignedBookings = mockBookings.filter(b => b.provider === providerName);
-        setBookings(assignedBookings);
+  const fetchProviderData = async () => {
+    if (!profile) return;
+    setLoading(true);
+    try {
+        const [bookingsRes, complaintsRes] = await Promise.all([
+            fetch('/api/bookings'),
+            fetch('/api/complaints'),
+        ]);
 
-        const providerComplaints = mockComplaints.filter(c => c.provider === providerName);
-        setComplaints(providerComplaints);
+        if (bookingsRes.ok) {
+            const allBookings = await bookingsRes.json();
+            setBookings(allBookings.filter((b: Booking) => b.provider === profile.name));
+        }
+
+        if (complaintsRes.ok) {
+            const allComplaints = await complaintsRes.json();
+            setComplaints(allComplaints.filter((c: Complaint) => c.provider === profile.name));
+        }
+
+    } catch (error) {
+        console.error("Failed to fetch provider data:", error);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchProviderData();
   }, [profile]);
   
   const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
@@ -117,6 +59,11 @@ export default function ProviderDashboardPage() {
             <Skeleton className="h-96 w-full" />
         </div>
     )
+  }
+
+  const handleBookingUpdate = () => {
+    // Refetch data after an update
+    fetchProviderData();
   }
 
   return (
@@ -139,7 +86,7 @@ export default function ProviderDashboardPage() {
             <TabsTrigger value="complaints">
                 <MessageSquareWarning className="mr-2 h-4 w-4"/>
                 Complaints
-                {complaints.length > 0 && <Badge className="ml-2">{complaints.length}</Badge>}
+                {complaints.filter(c => c.status === 'Pending').length > 0 && <Badge className="ml-2">{complaints.filter(c => c.status === 'Pending').length}</Badge>}
             </TabsTrigger>
         </TabsList>
         <TabsContent value="jobs" className="mt-8">
@@ -163,7 +110,7 @@ export default function ProviderDashboardPage() {
                         .filter(b => b.status === status)
                         .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                         .map(booking => (
-                        <BookingCard key={booking.id} booking={booking} userRole="provider" />
+                        <BookingCard key={booking._id} booking={booking} userRole="provider" onUpdate={handleBookingUpdate} />
                     ))}
                     {bookings.filter(b => b.status === status).length === 0 && (
                         <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
@@ -179,7 +126,9 @@ export default function ProviderDashboardPage() {
                 {loading ? (
                     <><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></>
                 ) : complaints.length > 0 ? (
-                    complaints.map((complaint) => (
+                    complaints
+                     .filter(c => c.status === 'Pending')
+                     .map((complaint) => (
                         <ProviderComplaintCard key={complaint.id} complaint={complaint} />
                     ))
                 ) : (
@@ -187,6 +136,11 @@ export default function ProviderDashboardPage() {
                         <p>You have no pending complaints.</p>
                     </div>
                 )}
+                 {complaints.filter(c => c.status === 'Pending').length === 0 && !loading && (
+                    <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
+                        <p>You have no pending complaints.</p>
+                    </div>
+                 )}
             </div>
         </TabsContent>
        </Tabs>

@@ -1,14 +1,13 @@
+
 'use client';
 
 import Link from 'next/link';
 import {
   User,
-  MapPin,
   Calendar,
   Clock,
   Sparkles,
   MessageSquareWarning,
-  ChevronRight,
   PlusCircle,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,14 +21,45 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/components/session-provider';
-
-// Static data removed
-const bookings: any[] = [];
-const complaints: any[] = [];
-
+import { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Booking } from '@/lib/types'; // Import Booking type
+import { Complaint } from '@/app/admin/complaints/complaint-analysis-card'; // Import Complaint type
 
 export default function DashboardPage() {
   const { user, profile } = useSession();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [complaints, setComplaints] = useState<any[]>([]); // Using any for now
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const [bookingsRes, complaintsRes] = await Promise.all([
+          fetch('/api/bookings'),
+          fetch('/api/complaints'),
+        ]);
+
+        if (bookingsRes.ok) {
+          const allBookings = await bookingsRes.json();
+          setBookings(allBookings.filter((b: Booking) => b.userId === user.uid));
+        }
+
+        if (complaintsRes.ok) {
+          const allComplaints = await complaintsRes.json();
+          setComplaints(allComplaints.filter((c: any) => c.userId === user.uid));
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -95,35 +125,42 @@ export default function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-4">
-                {bookings.length === 0 ? (
-                    <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
-                        <p className='mb-4'>You have no upcoming or past bookings.</p>
-                         <Button asChild>
-                            <Link href="/book">Book Your First Cleaning</Link>
-                        </Button>
-                    </div>
-                ) : bookings.map((booking) => (
-                  <li
-                    key={booking.id}
-                    className="flex flex-wrap items-center justify-between gap-4 p-4 border rounded-lg"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-semibold flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        {booking.service}
-                      </p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                         <Clock className="w-4 h-4" />
-                        {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
-                    </div>
-                     <Badge variant={booking.status === 'Upcoming' ? 'default' : 'outline'}>
-                        {booking.status}
-                     </Badge>
-                  </li>
-                ))}
-              </ul>
+              {loading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
+                <ul className="space-y-4">
+                  {bookings.length === 0 ? (
+                      <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
+                          <p className='mb-4'>You have no upcoming or past bookings.</p>
+                           <Button asChild>
+                              <Link href="/book">Book Your First Cleaning</Link>
+                          </Button>
+                      </div>
+                  ) : bookings.map((booking) => (
+                    <li
+                      key={booking._id}
+                      className="flex flex-wrap items-center justify-between gap-4 p-4 border rounded-lg"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-semibold flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          {booking.service}
+                        </p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                           <Clock className="w-4 h-4" />
+                          {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                        </p>
+                      </div>
+                       <Badge variant={booking.status === 'Completed' ? 'outline' : 'default'}>
+                          {booking.status}
+                       </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
 
@@ -141,6 +178,11 @@ export default function DashboardPage() {
                 </Button>
             </CardHeader>
             <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
                 <ul className="space-y-4">
                     {complaints.length === 0 ? (
                         <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>
@@ -151,24 +193,22 @@ export default function DashboardPage() {
                         </div>
                     ) : complaints.map((complaint) => (
                     <li
-                        key={complaint.id}
+                        key={complaint._id}
                         className="flex items-center justify-between p-4 border rounded-lg"
                     >
                         <div className="space-y-1">
-                            <p className="font-semibold">
-                                {complaint.subject}
+                            <p className="font-semibold truncate max-w-md">
+                                {complaint.complaint}
                             </p>
                             <p className="text-sm text-muted-foreground">
                                 Submitted on {new Date(complaint.date).toLocaleDateString()}
                             </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <Badge variant="destructive">{complaint.status}</Badge>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
+                        <Badge variant={complaint.status === 'Pending' ? 'destructive' : 'outline'}>{complaint.status}</Badge>
                     </li>
                     ))}
                 </ul>
+              )}
             </CardContent>
           </Card>
         </div>

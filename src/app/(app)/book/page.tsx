@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -38,6 +39,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { useSession } from '@/components/session-provider';
 
 const steps = [
   { id: 1, name: 'Service', icon: Sparkles },
@@ -56,29 +58,68 @@ const timeSlots = [
 ];
 
 export default function BookingPage() {
+  const { user, profile } = useSession();
+  const { toast } = useToast();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [building, setBuilding] = useState<string>();
   const [service, setService] = useState<string>();
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
   const [frequency, setFrequency] = useState<string>();
-  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
   const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
 
-  const handleBooking = () => {
-    toast({
-      title: 'Booking Confirmed!',
-      description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
-    });
-    // Reset state and move to first step
-    setCurrentStep(1);
-    setBuilding(undefined);
-    setService(undefined);
-    setDate(undefined);
-    setTime(undefined);
-    setFrequency(undefined);
+  const handleBooking = async () => {
+    if (!user || !profile || !building || !service || !date || !time || !frequency) {
+        toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
+        return;
+    }
+    
+    setIsSubmitting(true);
+
+    try {
+        const response = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: user.uid,
+                userName: profile.name,
+                building: building,
+                service: service,
+                date: format(date, 'yyyy-MM-dd'),
+                time: time,
+                frequency: frequency,
+                roomType: profile.roomSize, // Assuming room size is part of the user profile
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create booking.');
+        }
+
+        toast({
+            title: 'Booking Confirmed!',
+            description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
+        });
+        
+        // Reset state and move to first step
+        setCurrentStep(1);
+        setBuilding(undefined);
+        setService(undefined);
+        setDate(undefined);
+        setTime(undefined);
+        setFrequency(undefined);
+
+    } catch (error) {
+        console.error('Booking error:', error);
+        toast({ variant: 'destructive', title: 'Booking Failed', description: 'An unexpected error occurred. Please try again.'});
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
   const progressValue = ((currentStep - 1) / (steps.length - 1)) * 100;
@@ -149,9 +190,9 @@ export default function BookingPage() {
                     </SelectTrigger>
                   </div>
                   <SelectContent>
-                    <SelectItem value="standard">Standard Clean</SelectItem>
-                    <SelectItem value="deep">Deep Clean</SelectItem>
-                    <SelectItem value="move-out">Move-In/Out Clean</SelectItem>
+                    <SelectItem value="Standard Clean">Standard Clean</SelectItem>
+                    <SelectItem value="Deep Clean">Deep Clean</SelectItem>
+                    <SelectItem value="Move-In/Out Clean">Move-In/Out Clean</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -244,8 +285,8 @@ export default function BookingPage() {
               Next <ChevronRight className="ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleBooking}>
-              Confirm Booking <Check className="ml-2" />
+            <Button onClick={handleBooking} disabled={isSubmitting}>
+              {isSubmitting ? 'Confirming...' : 'Confirm Booking'} <Check className="ml-2" />
             </Button>
           )}
         </CardFooter>

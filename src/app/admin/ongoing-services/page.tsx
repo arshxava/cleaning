@@ -5,58 +5,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookingCard, Booking } from '@/components/booking-card';
-
-const mockBookings: Booking[] = [
-  {
-    id: '1',
-    user: 'Alice Johnson',
-    building: 'Chestnut Residence',
-    roomType: 'Single Dorm',
-    service: 'Deep Clean',
-    date: '2024-08-15',
-    status: 'Aligned',
-    provider: 'Quality First Sparkle',
-    beforeImages: [],
-    afterImages: [],
-  },
-  {
-    id: '2',
-    user: 'Bob Williams',
-    building: 'Place Vanier',
-    roomType: 'Double Dorm',
-    service: 'Standard Clean',
-    date: '2024-08-16',
-    status: 'In Process',
-    provider: 'CleanSweep Inc.',
-    beforeImages: ['https://picsum.photos/seed/before1/600/400'],
-    afterImages: [],
-  },
-  {
-    id: '3',
-    user: 'Charlie Brown',
-    building: 'Royal Victoria College',
-    roomType: 'Bachelor Apartment',
-    service: 'Move-Out Clean',
-    date: '2024-08-12',
-    status: 'Completed',
-    provider: 'Quality First Sparkle',
-    beforeImages: ['https://picsum.photos/seed/before2/600/400', 'https://picsum.photos/seed/before3/600/400'],
-    afterImages: ['https://picsum.photos/seed/after2/600/400'],
-  },
-   {
-    id: '4',
-    user: 'Diana Prince',
-    building: 'Chestnut Residence',
-    roomType: 'Single Dorm',
-    service: 'Standard Clean',
-    date: '2024-08-18',
-    status: 'Aligned',
-    provider: 'CleanSweep Inc.',
-    beforeImages: [],
-    afterImages: [],
-  },
-];
+import { BookingCard } from '@/components/booking-card';
+import { Booking } from '@/lib/types';
 
 
 export default function OngoingServicesPage() {
@@ -64,9 +14,23 @@ export default function OngoingServicesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, you would fetch this data from your API
-    setBookings(mockBookings);
-    setLoading(false);
+    const fetchBookings = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/api/bookings');
+            if (!response.ok) {
+                throw new Error('Failed to fetch bookings');
+            }
+            const data = await response.json();
+            setBookings(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchBookings();
   }, []);
 
   const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
@@ -103,7 +67,7 @@ export default function OngoingServicesPage() {
                     .filter(b => b.status === status)
                     .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                     .map(booking => (
-                      <BookingCard key={booking.id} booking={booking} userRole="admin" />
+                      <BookingCard key={booking._id} booking={booking} userRole="admin" />
                   ))}
                    {bookings.filter(b => b.status === status).length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
