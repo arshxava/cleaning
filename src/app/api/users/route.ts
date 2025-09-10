@@ -47,49 +47,36 @@ export async function POST(request: Request) {
     
     let finalUid = userData.uid;
 
-    // For regular user sign-up, the UID is passed from the client.
-    if (userData.role === 'user' && userData.uid) {
-        const existingUserByUid = await usersCollection.findOne({ uid: userData.uid });
-        if (existingUserByUid) {
-            return NextResponse.json({ message: 'User already exists.', user: existingUserByUid }, { status: 200 });
-        }
-    } else if (userData.role === 'user' && !userData.uid) {
-       return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
-    }
-
-    // Handle provider creation or link existing auth user
-    if (userData.role === 'provider') {
+    if (userData.role === 'user') {
+      if (!finalUid) {
+        return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
+      }
+      const existingUser = await usersCollection.findOne({ uid: finalUid });
+      if (existingUser) {
+        return NextResponse.json({ message: 'User profile already exists.', user: existingUser }, { status: 200 });
+      }
+    } else if (userData.role === 'provider') {
       try {
+        // For providers, check if an auth user exists. If not, create one.
         const userRecord = await getAuth().getUserByEmail(userData.email);
         finalUid = userRecord.uid;
       } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
-          // If user does not exist in Firebase Auth, create them.
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             displayName: userData.name,
           });
           finalUid = newUserRecord.uid;
         } else {
-           // Re-throw other Firebase errors
-           throw error; 
+           throw error; // Re-throw other Firebase errors
         }
       }
-    }
-    
-    // Final check for existing profile with the determined UID before inserting
-     if (finalUid) {
-        const existingUserByUid = await usersCollection.findOne({ uid: finalUid });
-        if (existingUserByUid) {
-            // This can happen if a provider is being created but their profile already exists in DB
-            return NextResponse.json({ message: 'User profile with this UID already exists.' }, { status: 409 });
-        }
-    }
-
-    // Check for existing user by email in our DB before creating a new one
-    const existingUserByEmail = await usersCollection.findOne({ email: userData.email });
-    if (existingUserByEmail) {
-        return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
+      
+      // Check if a profile with this email or UID already exists in our DB
+      const existingProfile = await usersCollection.findOne({ $or: [{ email: userData.email }, { uid: finalUid }] });
+      if (existingProfile) {
+        return NextResponse.json({ message: 'A provider with this email or UID already exists.' }, { status: 409 });
+      }
     }
 
     const { password, ...dataToInsert } = {
