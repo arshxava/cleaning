@@ -46,7 +46,7 @@ const Header = () => {
   const closeSheet = () => setSheetOpen(false);
   
   const visibleLinks = navLinks.filter(link => {
-    if (profile?.role === 'admin') return false; // Hide all standard links for admins
+    if (profile?.role === 'admin') return false;
     return !link.protected || (link.protected && user);
   });
 
@@ -76,14 +76,14 @@ const Header = () => {
                 className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Shield className="h-4 w-4" />
-                Admin
+                Admin Dashboard
               </Link>
             )}
         </nav>
         <div className="ml-auto flex items-center gap-4">
            {user ? (
             <Button onClick={handleSignOut} variant="outline" size="sm">
-              <LogOut className="mr-2" />
+              <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
           ) : (
@@ -129,7 +129,7 @@ const Header = () => {
                         onClick={closeSheet}
                     >
                         <Shield className="h-4 w-4" />
-                        Admin
+                        Admin Dashboard
                     </Link>
                     )}
                 </nav>
