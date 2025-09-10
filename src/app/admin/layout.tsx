@@ -27,6 +27,13 @@ import {
 import Header from '@/components/header';
 import Footer from '@/components/footer';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/components/session-provider';
+import { useEffect, useState } from 'react';
+
+type Complaint = {
+  id: string;
+  status: 'Pending' | 'Resolved';
+}
 
 export default function AdminLayout({
   children,
@@ -34,14 +41,38 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { profile } = useSession();
+  const [pendingComplaints, setPendingComplaints] = useState(0);
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      try {
+        const response = await fetch('/api/complaints');
+        if (!response.ok) {
+          throw new Error('Failed to fetch complaints');
+        }
+        const data: Complaint[] = await response.json();
+        const pendingCount = data.filter(c => c.status === 'Pending').length;
+        setPendingComplaints(pendingCount);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchComplaints();
+  }, []);
 
   const navLinks = [
     { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
-    { href: '/admin/services', label: 'Services', icon: Package },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/analytics', label: 'Analytics', icon: LineChart },
+    { href: '/admin/services', label: 'Services', icon: Package, disabled: true },
+    { href: '/admin/users', label: 'Users', icon: Users, disabled: true },
+    { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
+
+  if (profile?.role !== 'admin') {
+    return null; // Or a loading/unauthorized component
+  }
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -61,14 +92,15 @@ export default function AdminLayout({
                   href={link.href}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    pathname === link.href && "bg-muted text-primary"
+                    pathname === link.href && "bg-muted text-primary",
+                    link.disabled && "pointer-events-none opacity-50"
                   )}
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
-                   {link.href === '/admin/complaints' && (
+                   {link.href === '/admin/complaints' && pendingComplaints > 0 && (
                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-                      3
+                      {pendingComplaints}
                     </Badge>
                   )}
                 </Link>
@@ -76,7 +108,7 @@ export default function AdminLayout({
             </nav>
           </div>
           <div className="mt-auto p-4">
-            <Card x-chunk="dashboard-02-chunk-0">
+            <Card>
               <CardHeader className="p-2 pt-0 md:p-4">
                 <CardTitle>Need Help?</CardTitle>
                 <CardDescription>

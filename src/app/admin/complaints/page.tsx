@@ -1,8 +1,8 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Clock } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react';
 import { ComplaintAnalysisCard } from './complaint-analysis-card';
 import type { Complaint } from './complaint-analysis-card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,12 +15,13 @@ export default function AdminComplaintsPage() {
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
+        setLoading(true);
         const response = await fetch('/api/complaints');
         if (!response.ok) {
           throw new Error('Failed to fetch complaints');
         }
         const data = await response.json();
-        const formattedComplaints = data.map((c: any) => ({
+        const formattedComplaints: Complaint[] = data.map((c: any) => ({
           id: c._id,
           user: c.user,
           building: c.building,
@@ -30,7 +31,8 @@ export default function AdminComplaintsPage() {
           provider: c.provider,
           lastResponseHours: c.lastResponseTimestamp
             ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
-            : 0,
+            // Calculate hours since complaint if no response yet
+            : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000), 
         }));
         setComplaints(formattedComplaints);
       } catch (error) {
@@ -45,7 +47,7 @@ export default function AdminComplaintsPage() {
 
   const pendingComplaints = complaints.filter(
     (c) => c.status === 'Pending'
-  );
+  ).sort((a,b) => b.lastResponseHours - a.lastResponseHours);
 
   const resolvedComplaintsData = complaints.filter(c => c.status === 'Resolved');
   const unresolvedComplaints = pendingComplaints.filter(c => c.lastResponseHours > 24);
@@ -120,4 +122,3 @@ export default function AdminComplaintsPage() {
     </>
   );
 }
-

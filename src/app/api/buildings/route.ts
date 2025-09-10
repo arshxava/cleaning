@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 const buildingSchema = z.object({
   name: z.string().min(3),
-  floors: z.number().min(1),
+  floors: z.coerce.number().min(1),
 });
 
 export async function POST(request: Request) {
