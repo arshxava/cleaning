@@ -113,20 +113,23 @@ export default function ProvidersPage() {
 
   useEffect(() => {
     fetchInitialData();
-  }, [toast]);
+  }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      // This is a temporary way to create an auth user. 
+      // In a real app, you'd send a "magic link" or similar, not set a password.
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      // Now save the full provider profile to our database
       const providerData = {
         uid: user.uid,
         ...values,
         role: 'provider',
-        notificationPreference: 'email',
-        school: 'N/A', 
-        roomSize: 'N/A', 
+        notificationPreference: 'email', // default
+        school: 'N/A', // not applicable for providers
+        roomSize: 'N/A', // not applicable for providers
       };
 
       const response = await fetch('/api/users', {
@@ -144,7 +147,7 @@ export default function ProvidersPage() {
         description: `An account for ${values.name} has been created.`,
       });
       form.reset();
-      fetchInitialData();
+      fetchInitialData(); // Refresh the list
 
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
@@ -317,7 +320,7 @@ export default function ProvidersPage() {
             </CardContent>
           </Card>
         </div>
-        <div className="md-col-span-2">
+        <div className="md:col-span-2">
            <Card>
             <CardHeader>
               <CardTitle>Existing Providers</CardTitle>

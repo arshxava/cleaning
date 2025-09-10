@@ -7,6 +7,7 @@ const userSchema = z.object({
   uid: z.string(),
   name: z.string(),
   email: z.string().email(),
+  password: z.string().optional(), // Password is not stored in mongo
   phone: z.string(),
   notificationPreference: z.enum(['email', 'sms']),
   school: z.string(),
@@ -25,8 +26,8 @@ export async function POST(request: Request) {
 
     const usersCollection = db.collection('users');
     
-    // Ensure the role is set, default to 'user' if not provided
-    const dataToInsert = {
+    // Don't store password in the database
+    const { password, ...dataToInsert } = {
         ...userData,
         role: userData.role || 'user',
         createdAt: new Date(),
