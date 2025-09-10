@@ -5,36 +5,47 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
+import type { UserProfile } from '@/lib/types';
 
 interface SessionContextType {
   user: User | null;
+  profile: UserProfile | null;
   loading: boolean;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 const publicRoutes = ['/sign-in', '/sign-up', '/verify-email'];
+const adminRoutes = ['/admin'];
+
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         if (!user.emailVerified && pathname !== '/verify-email') {
-            // Keep the user on the sign-in page if their email is not verified, but show a toast
-            // The sign in page should have a way to resend verification
-            // For now, we will just not log them in client side
             setUser(null);
-
+            setProfile(null);
         } else {
              setUser(user);
+             // Fetch user profile from our API
+             const response = await fetch(`/api/users/${user.uid}`);
+             if (response.ok) {
+               const profileData = await response.json();
+               setProfile(profileData);
+             } else {
+               setProfile(null);
+             }
         }
       } else {
         setUser(null);
+        setProfile(null);
       }
       setLoading(false);
     });
@@ -46,13 +57,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (loading) return;
 
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+
+    if (isAdminRoute && profile?.role !== 'admin') {
+       router.push('/dashboard'); // Redirect non-admins from admin routes
+       return;
+    }
 
     if (!user && !isPublicRoute) {
       router.push('/sign-in');
     } else if (user && (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up'))) {
        router.push('/dashboard');
     }
-  }, [user, loading, router, pathname]);
+  }, [user, profile, loading, router, pathname]);
 
   if (loading) {
     return (
@@ -67,7 +84,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SessionContext.Provider value={{ user, loading }}>
+    <SessionContext.Provider value={{ user, profile, loading }}>
       {children}
     </SessionContext.Provider>
   );

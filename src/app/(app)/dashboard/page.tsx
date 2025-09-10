@@ -29,7 +29,7 @@ const complaints: any[] = [];
 
 
 export default function DashboardPage() {
-  const { user } = useSession();
+  const { user, profile } = useSession();
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -40,7 +40,7 @@ export default function DashboardPage() {
     return name.substring(0, 2);
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return null; // Or a loading spinner
   }
 
@@ -70,6 +70,10 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="text-sm space-y-3">
+              <div className='flex justify-between'>
+                <span className='font-semibold'>Role:</span>
+                <Badge variant={profile.role === 'admin' ? 'destructive' : 'secondary'}>{profile.role}</Badge>
+              </div>
               <Button variant="outline" className="w-full mt-2">Edit Profile</Button>
             </CardContent>
           </Card>

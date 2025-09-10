@@ -87,7 +87,8 @@ export default function SignUpPage() {
         },
         body: JSON.stringify({
           uid: user.uid,
-          ...values
+          ...values,
+          role: 'user', // Explicitly set the role to 'user'
         }),
       });
 

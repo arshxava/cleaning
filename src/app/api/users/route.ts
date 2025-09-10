@@ -10,6 +10,7 @@ const userSchema = z.object({
   notificationPreference: z.enum(['email', 'sms']),
   school: z.string(),
   roomSize: z.string(),
+  role: z.enum(['user', 'admin']).default('user'),
 });
 
 export async function POST(request: Request) {
@@ -22,10 +23,14 @@ export async function POST(request: Request) {
 
     const usersCollection = db.collection('users');
     
-    const result = await usersCollection.insertOne({
+    // Ensure the role is set, default to 'user' if not provided
+    const dataToInsert = {
         ...userData,
+        role: userData.role || 'user',
         createdAt: new Date(),
-    });
+    };
+    
+    const result = await usersCollection.insertOne(dataToInsert);
 
     return NextResponse.json({ message: 'User created successfully', userId: result.insertedId }, { status: 201 });
   } catch (error) {
