@@ -2,38 +2,67 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { BookingCard } from '@/components/booking-card';
-import { Booking } from '@/lib/types';
+import { MoreHorizontal } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+
+import { Skeleton } from '@/components/ui/skeleton';
+import { Booking } from '@/lib/types';
+import { BookingDetails } from '@/components/booking-details';
 
 export default function OngoingServicesPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchBookings = async () => {
-        try {
-            setLoading(true);
-            const response = await fetch('/api/bookings');
-            if (!response.ok) {
-                throw new Error('Failed to fetch bookings');
-            }
-            const data = await response.json();
-            setBookings(data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
+      try {
+        setLoading(true);
+        const response = await fetch('/api/bookings');
+        if (!response.ok) {
+          throw new Error('Failed to fetch bookings');
         }
+        const data = await response.json();
+        setBookings(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchBookings();
   }, []);
 
-  const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
+  const handleViewDetails = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsDialogOpen(true);
+  };
+  
+  const sortedBookings = bookings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <>
@@ -46,37 +75,76 @@ export default function OngoingServicesPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+      <div className="rounded-lg border bg-card">
         {loading ? (
-            columns.map(status => (
-                <div key={status} className="space-y-4">
-                    <Skeleton className="h-8 w-1/2" />
-                    <Skeleton className="h-64 w-full" />
-                    <Skeleton className="h-64 w-full" />
-                </div>
-            ))
+            <div className='p-6'>
+                <Skeleton className="h-10 w-full mb-4" />
+                <Skeleton className="h-10 w-full mb-4" />
+                <Skeleton className="h-10 w-full" />
+            </div>
         ) : (
-            columns.map(status => (
-              <div key={status} className="space-y-4 p-4 bg-muted/50 rounded-lg h-full">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  {status}
-                  <Badge variant="secondary" className="h-6">{bookings.filter(b => b.status === status).length}</Badge>
-                </h2>
-                <div className="space-y-4">
-                  {bookings
-                    .filter(b => b.status === status)
-                    .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                    .map(booking => (
-                      <BookingCard key={booking._id} booking={booking} userRole="admin" />
-                  ))}
-                   {bookings.filter(b => b.status === status).length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
-                   )}
-                </div>
-              </div>
-            ))
+            <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedBookings.map((booking) => (
+                <TableRow key={booking._id}>
+                  <TableCell>
+                    <div className="font-medium">{booking.service}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {booking.building}
+                    </div>
+                  </TableCell>
+                  <TableCell>{booking.userName}</TableCell>
+                   <TableCell>
+                      {new Date(booking.date).toLocaleDateString('en-CA', { timeZone: 'UTC' })}
+                   </TableCell>
+                  <TableCell>
+                    <Badge variant={booking.status === 'Completed' ? 'outline' : 'secondary'}>
+                      {booking.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => handleViewDetails(booking)}>
+                          View Details
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-3xl">
+              {selectedBooking && <BookingDetails booking={selectedBooking} />}
+          </DialogContent>
+      </Dialog>
     </>
   );
 }
