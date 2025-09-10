@@ -11,8 +11,12 @@ const bookingSchema = z.object({
   floor: z.string().optional(),
   apartmentType: z.string().optional(),
   apartmentNumber: z.string().optional(),
-  roomCount: z.number().optional(),
   service: z.string(),
+  roomCounts: z.object({
+    standard: z.number(),
+    deep: z.number(),
+    'move-out': z.number(),
+  }),
   date: z.string(), // Expecting 'yyyy-MM-dd'
   time: z.string(),
   frequency: z.string(),

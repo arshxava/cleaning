@@ -63,11 +63,20 @@ const timeSlots = [
   '05:00 PM - 07:00 PM',
 ];
 
-const serviceKeyMapping: { [key: string]: 'standard' | 'deep' | 'move-out' } = {
+const serviceKeys = {
   'Standard Clean': 'standard',
   'Deep Clean': 'deep',
   'Move-In/Out Clean': 'move-out',
-};
+} as const;
+
+type ServiceName = keyof typeof serviceKeys;
+type ServiceKey = typeof serviceKeys[ServiceName];
+
+type RoomCounts = {
+    standard: number;
+    deep: number;
+    'move-out': number;
+}
 
 type RoomType = {
   name: string;
@@ -98,8 +107,9 @@ export default function BookingPage() {
   const [floor, setFloor] = useState<string>();
   const [apartmentType, setApartmentType] = useState<string>();
   const [apartmentNumber, setApartmentNumber] = useState('');
-  const [roomCount, setRoomCount] = useState(1);
-  const [service, setService] = useState<keyof typeof serviceKeyMapping | undefined>();
+  
+  const [roomCounts, setRoomCounts] = useState<RoomCounts>({ standard: 0, deep: 0, 'move-out': 0 });
+
   const [price, setPrice] = useState(0);
 
   const [date, setDate] = useState<Date | undefined>();
@@ -131,24 +141,52 @@ export default function BookingPage() {
   }
 
   useEffect(() => {
-    if (service && apartmentType && roomCount > 0 && selectedBuilding) {
+    if (apartmentType && selectedBuilding) {
       const roomTypeData = selectedBuilding.roomTypes.find(rt => rt.name === apartmentType);
       if (roomTypeData) {
-        const serviceKey = serviceKeyMapping[service];
-        const pricePerRoom = roomTypeData.prices[serviceKey] || 0;
-        const calculatedPrice = pricePerRoom * roomCount;
-        setPrice(calculatedPrice);
+        let total = 0;
+        for (const key of Object.keys(roomCounts) as (keyof RoomCounts)[]) {
+          const count = roomCounts[key];
+          if (count > 0) {
+            const pricePerRoom = roomTypeData.prices[key] || 0;
+            total += pricePerRoom * count;
+          }
+        }
+        setPrice(total);
       }
     } else {
       setPrice(0);
     }
-  }, [service, apartmentType, roomCount, selectedBuilding]);
+  }, [roomCounts, apartmentType, selectedBuilding]);
+
+  const handleRoomCountChange = (serviceKey: ServiceKey, change: number) => {
+    setRoomCounts(prev => ({
+      ...prev,
+      [serviceKey]: Math.max(0, prev[serviceKey] + change),
+    }));
+  };
+  
+  const getSelectedServices = () => {
+    return Object.entries(roomCounts)
+      .filter(([, count]) => count > 0)
+      .map(([key]) => {
+        const serviceEntry = Object.entries(serviceKeys).find(([, value]) => value === key);
+        return serviceEntry ? serviceEntry[0] as ServiceName : '';
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  const getTotalRooms = () => {
+     return Object.values(roomCounts).reduce((sum, count) => sum + count, 0);
+  }
 
   const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
   const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
 
   const handleBooking = async () => {
-    if (!user || !profile || !building || !service || !date || !time || !frequency) {
+    const totalRooms = getTotalRooms();
+    if (!user || !profile || !building || totalRooms === 0 || !date || !time || !frequency) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
         return;
     }
@@ -166,8 +204,8 @@ export default function BookingPage() {
                 floor: floor,
                 apartmentType: apartmentType,
                 apartmentNumber: apartmentNumber,
-                roomCount: roomCount,
-                service: service,
+                service: getSelectedServices(),
+                roomCounts: roomCounts,
                 date: format(date, 'yyyy-MM-dd'),
                 time: time,
                 frequency: frequency,
@@ -190,8 +228,7 @@ export default function BookingPage() {
         setFloor(undefined);
         setApartmentType(undefined);
         setApartmentNumber('');
-        setRoomCount(1);
-        setService(undefined);
+        setRoomCounts({ standard: 0, deep: 0, 'move-out': 0 });
         setDate(undefined);
         setTime(undefined);
         setFrequency(undefined);
@@ -207,7 +244,7 @@ export default function BookingPage() {
   
   const progressValue = ((currentStep - 1) / (steps.length - 1)) * 100;
   
-  const isStep1Complete = building && floor && apartmentType && apartmentNumber && service && roomCount > 0;
+  const isStep1Complete = building && floor && apartmentType && apartmentNumber && getTotalRooms() > 0;
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
@@ -248,6 +285,7 @@ export default function BookingPage() {
         <CardContent className="min-h-[300px]">
           {currentStep === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               {/* Location Details */}
               <div className="space-y-4">
                  <Label>School/Building</Label>
                  <Select onValueChange={handleBuildingChange} value={selectedBuilding?._id} disabled={!profile}>
@@ -308,33 +346,27 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <Label>Service Type</Label>
-                <Select onValueChange={(value: keyof typeof serviceKeyMapping) => setService(value)} value={service}>
-                  <div className="relative">
-                    <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <SelectTrigger className="pl-10">
-                      <SelectValue placeholder="Select a cleaning service" />
-                    </SelectTrigger>
-                  </div>
-                  <SelectContent>
-                    <SelectItem value="Standard Clean">Standard Clean</SelectItem>
-                    <SelectItem value="Deep Clean">Deep Clean</SelectItem>
-                    <SelectItem value="Move-In/Out Clean">Move-In/Out Clean</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Service Selection */}
+              <div className="md:col-span-2 space-y-4 border-t pt-6 mt-2">
+                 <Label className="text-base font-semibold">Select Services and Rooms</Label>
+                 <div className="space-y-4">
+                    {(Object.keys(serviceKeys) as ServiceName[]).map(serviceName => {
+                        const serviceKey = serviceKeys[serviceName];
+                        return (
+                            <div key={serviceKey} className="flex items-center justify-between p-3 border rounded-md">
+                                <p className="font-medium">{serviceName}</p>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="icon" onClick={() => handleRoomCountChange(serviceKey, -1)}><Minus className="h-4 w-4" /></Button>
+                                    <Input type="number" className="w-16 text-center" value={roomCounts[serviceKey]} readOnly />
+                                    <Button variant="outline" size="icon" onClick={() => handleRoomCountChange(serviceKey, 1)}><Plus className="h-4 w-4" /></Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                 </div>
               </div>
 
-              <div className="space-y-4">
-                  <Label>Number of Rooms</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setRoomCount(Math.max(1, roomCount - 1))}><Minus className="h-4 w-4" /></Button>
-                    <Input type="number" className="w-16 text-center" value={roomCount} readOnly />
-                    <Button variant="outline" size="icon" onClick={() => setRoomCount(roomCount + 1)}><Plus className="h-4 w-4" /></Button>
-                  </div>
-              </div>
-              
-              {(service && price > 0) && (
+              {(price > 0) && (
                  <div className="md:col-span-2 flex justify-end items-center gap-4 p-4 bg-primary/10 rounded-md border border-primary/20">
                      <p className="font-semibold text-lg text-primary">Estimated Total:</p>
                      <p className="text-2xl font-bold text-primary flex items-center"><DollarSign className="h-5 w-5" />{price.toFixed(2)}</p>
@@ -409,13 +441,21 @@ export default function BookingPage() {
                     <span className="text-muted-foreground">Apt Number:</span>
                     <span className="font-medium text-right">{apartmentNumber || 'Not selected'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Service:</span>
-                    <span className="font-medium text-right">{service || 'Not selected'}</span>
-                  </div>
-                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rooms:</span>
-                    <span className="font-medium text-right">{roomCount}</span>
+                  <div className="md:col-span-2 space-y-2 border-t pt-4 mt-2">
+                     <h4 className="font-medium">Selected Services:</h4>
+                      {(Object.keys(serviceKeys) as ServiceName[]).map(serviceName => {
+                        const serviceKey = serviceKeys[serviceName];
+                        const count = roomCounts[serviceKey];
+                        if (count > 0) {
+                          return (
+                            <div key={serviceKey} className="flex justify-between">
+                               <span className="text-muted-foreground">{serviceName}:</span>
+                               <span className="font-medium">{count} room(s)</span>
+                            </div>
+                          )
+                        }
+                        return null;
+                      })}
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Date:</span>

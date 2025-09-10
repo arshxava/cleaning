@@ -15,6 +15,12 @@ export type UserProfile = {
 
 export type BookingStatus = 'Aligned' | 'In Process' | 'Completed';
 
+export type RoomCounts = {
+    standard: number;
+    deep: number;
+    'move-out': number;
+}
+
 export type Booking = {
   _id: string;
   userId: string;
@@ -23,8 +29,8 @@ export type Booking = {
   floor?: string;
   apartmentType?: string;
   apartmentNumber?: string;
-  roomCount?: number;
   service: string;
+  roomCounts: RoomCounts;
   date: string;
   time: string;
   frequency: string;
@@ -35,5 +41,7 @@ export type Booking = {
   afterImages: string[];
   createdAt: any;
 };
+
+    
 
     
