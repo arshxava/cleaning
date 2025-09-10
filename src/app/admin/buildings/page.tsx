@@ -195,10 +195,14 @@ export default function BuildingsPage() {
                                 <FormItem><FormLabel>Number of Rooms</FormLabel><FormControl><Input type="number" placeholder="e.g., 50" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <div className='space-y-2'>
-                                <FormLabel>Service Prices (CAD)</FormLabel>
+                                <p className='text-sm font-medium'>Service Prices (CAD)</p>
                                 {availableServices.map(service => (
                                     <FormField key={service.id} control={form.control} name={`roomTypes.${index}.prices.${service.id}`} render={({ field }) => (
-                                       <FormItem><FormControl><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder={service.label} {...field} className="pl-10" /></div></FormControl><FormMessage /></FormItem>
+                                       <FormItem className="flex items-center gap-4 space-y-0">
+                                            <FormLabel className="w-1/3 min-w-[120px] text-sm font-normal text-muted-foreground">{service.label}</FormLabel>
+                                            <FormControl><div className="relative w-full"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="0.00" {...field} className="pl-10" /></div></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                 ))}
                             </div>
