@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -10,7 +9,6 @@ import 'dotenv/config';
 // Initialize Firebase Admin SDK
 if (!getApps().length) {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // This will cause a server error if the variable is missing, which is intended.
     throw new Error('Missing FIREBASE_SERVICE_ACCOUNT environment variable');
   }
   
@@ -44,49 +42,60 @@ export async function POST(request: Request) {
 
     // --- Path for Regular User Sign-up ---
     if (userData.role === 'user') {
-      if (!userData.uid) {
-        return NextResponse.json({ message: 'User UID is required for user role registration.' }, { status: 400 });
+      const uid = userData.uid;
+
+      if (!uid) {
+        return NextResponse.json(
+          { message: 'User UID is missing for user role.' },
+          { status: 400 }
+        );
       }
 
-      // Check if a profile with this UID already exists to prevent duplicates
-      const existingUser = await usersCollection.findOne({ uid: userData.uid });
+      const existingUser = await usersCollection.findOne({ uid });
       if (existingUser) {
-        // The profile already exists, which is fine. Return success.
-        return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
+        return NextResponse.json(
+          { message: 'User profile already exists.', uid },
+          { status: 200 }
+        );
       }
 
-      // Profile doesn't exist, create it.
       const dataToInsert = {
         ...userData,
+        uid,
         createdAt: new Date(),
       };
       await usersCollection.insertOne(dataToInsert);
-      return NextResponse.json({ message: 'User profile created successfully.', uid: userData.uid }, { status: 201 });
+
+      return NextResponse.json(
+        { message: 'User profile created successfully.', uid },
+        { status: 201 }
+      );
     }
 
     // --- Path for Admin Creating a Provider ---
     if (userData.role === 'provider') {
       const existingProfile = await usersCollection.findOne({ email: userData.email });
       if (existingProfile) {
-        return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
+        return NextResponse.json(
+          { message: 'A user with this email already exists in the database.' },
+          { status: 409 }
+        );
       }
 
       let uid;
       try {
-        // Check if an auth user already exists in Firebase
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
       } catch (error: any) {
-        // If user is not found in Firebase Auth, create a new one.
         if (error.code === 'auth/user-not-found') {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             displayName: userData.name,
-            emailVerified: true, // Mark as verified since it's an admin action
+            emailVerified: true, // Providers created by admin are auto-verified
           });
           uid = newUserRecord.uid;
         } else {
-          // Re-throw other Firebase-related errors
+          // Re-throw other auth errors
           throw error;
         }
       }
@@ -97,10 +106,11 @@ export async function POST(request: Request) {
         createdAt: new Date(),
       };
       await usersCollection.insertOne(dataToInsert);
+
       return NextResponse.json({ message: 'Provider created successfully', uid: uid }, { status: 201 });
     }
     
-    // Fallback for any other case
+    // Fallback for any other roles or invalid requests
     return NextResponse.json({ message: 'Invalid user role specified.' }, { status: 400 });
 
   } catch (error) {
