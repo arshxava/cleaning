@@ -10,7 +10,7 @@ import {
   Building,
 } from 'lucide-react';
 import type { AnalyzeComplaintOutput } from '@/ai/flows/complaint-response-time-analyzer';
-
+import { cn } from '@/lib/utils';
 import {
   Accordion,
   AccordionContent,
@@ -170,7 +170,7 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: Complaint }) {
                           className={cn(
                             'font-bold',
                             analysisResult.data.needsReminder
-                              ? 'text-destructive-foreground'
+                              ? 'text-destructive'
                               : 'text-green-700'
                           )}
                         >
