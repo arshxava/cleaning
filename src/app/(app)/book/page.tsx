@@ -220,16 +220,14 @@ export default function BookingPage() {
           )}
 
           {currentStep === 2 && (
-            <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    className="rounded-md border p-0"
-                    disabled={(day) => day < new Date(new Date().setDate(new Date().getDate() - 1))}
-                  />
-                </div>
+            <div className="flex flex-col sm:flex-row gap-8 justify-center">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="rounded-md border"
+                disabled={(day) => day < new Date(new Date().setDate(new Date().getDate() - 1))}
+              />
               <div className="grid grid-cols-1 gap-2 self-start">
                 {timeSlots.map((slot) => (
                   <Button
@@ -316,5 +314,7 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
 
     
