@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -87,7 +88,7 @@ export default function SignInPage() {
     } catch (error: any) {
       console.error('Authentication error:', error);
        let description = 'An unexpected error occurred. Please try again.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/invalid-credential') {
         description = 'Invalid email or password. Please check your credentials and try again.';
       } else if (error.code === 'auth/user-disabled') {
          description = 'This account has been disabled.'
