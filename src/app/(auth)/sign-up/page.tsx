@@ -65,6 +65,7 @@ export default function SignUpPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    form.clearErrors();
     try {
       // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -106,6 +107,7 @@ export default function SignUpPage() {
       let description = "An unexpected error occurred. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already in use. Please try signing in.";
+        form.setError("email", { type: "manual", message: "This email is already taken." });
       } else {
         description = error.message;
       }
