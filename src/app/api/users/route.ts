@@ -47,31 +47,30 @@ export async function POST(request: Request) {
     
     let finalUid = userData.uid;
 
+    // Handle regular user sign-up
     if (userData.role === 'user') {
       if (!finalUid) {
         return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
       }
-      // For a regular user sign-up, the auth user is already created on the client.
-      // We just need to check if a DB profile already exists for this UID.
+      
       const existingUser = await usersCollection.findOne({ uid: finalUid });
       if (existingUser) {
-        // This prevents a crash if the API is called twice for the same user.
-        return NextResponse.json({ message: 'User profile already exists.', user: existingUser }, { status: 200 });
+        // Profile already exists, just return success.
+        return NextResponse.json({ message: 'User profile already exists.', uid: finalUid }, { status: 200 });
       }
+
+    // Handle provider creation by admin
     } else if (userData.role === 'provider') {
-      // For providers created by an admin, the auth user might not exist yet.
       const existingProfile = await usersCollection.findOne({ email: userData.email });
       if (existingProfile) {
         return NextResponse.json({ message: 'A provider with this email already exists.' }, { status: 409 });
       }
       
       try {
-        // Check if an auth user exists.
         const userRecord = await getAuth().getUserByEmail(userData.email);
         finalUid = userRecord.uid;
       } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
-          // If not, create one.
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             displayName: userData.name,
@@ -83,10 +82,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Remove the password field before inserting into the database
+    // Remove password and create the database record
     const { password, ...dataToInsert } = {
         ...userData,
-        uid: finalUid, // Ensure the final UID is set
+        uid: finalUid, 
         createdAt: new Date(),
     };
     
