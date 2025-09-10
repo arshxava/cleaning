@@ -66,22 +66,48 @@ export default function SignUpPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, {
+      const user = userCredential.user;
+
+      // 2. Update Firebase profile with display name
+      await updateProfile(user, {
         displayName: values.name,
       });
-      await sendEmailVerification(userCredential.user);
+
+      // 3. Send verification email
+      await sendEmailVerification(user);
+
+      // 4. Save user data to MongoDB via our API route
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          ...values
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save user data.');
+      }
 
       toast({
         title: 'Account Created!',
-        description: 'A verification email has been sent to your inbox. Please verify your email to log in.',
+        description: 'A verification email has been sent. Please verify your email to log in.',
       });
       router.push('/sign-in');
+
     } catch (error: any) {
       console.error("Sign up error:", error);
       let description = "An unexpected error occurred. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
         description = "This email is already in use. Please try signing in.";
+      } else {
+        description = error.message;
       }
       toast({
         variant: 'destructive',
