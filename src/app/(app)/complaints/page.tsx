@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { MessageSquare, Image as ImageIcon, Briefcase } from 'lucide-react';
+import { MessageSquare, Image as ImageIcon, Briefcase, Loader2 } from 'lucide-react';
 import { useSession } from '@/components/session-provider';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const formSchema = z.object({
   bookingId: z.string().optional(),
   complaint: z.string().min(10, 'Please provide at least 10 characters to describe the issue.'),
-  image: z.any().optional(),
+  image: z.instanceof(File).optional(),
 });
 
 export default function ComplaintPage() {
@@ -42,6 +42,7 @@ export default function ComplaintPage() {
   const { user, profile } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -68,6 +69,47 @@ export default function ComplaintPage() {
       complaint: '',
     },
   });
+  
+  const getSignature = async (paramsToSign: Record<string, any>) => {
+    const response = await fetch('/api/cloudinary/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paramsToSign }),
+    });
+    const { signature } = await response.json();
+    return signature;
+  };
+
+  const uploadImageToCloudinary = async (file: File) => {
+      setIsUploading(true);
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      
+      const paramsToSign = { timestamp };
+      const signature = await getSignature(paramsToSign);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('signature', signature);
+      formData.append('timestamp', timestamp.toString());
+      formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!);
+
+      const endpoint = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+      
+      try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error('Image upload failed.');
+        
+        const data = await response.json();
+        return data.secure_url;
+      } finally {
+        setIsUploading(false);
+      }
+  };
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !profile) {
@@ -80,13 +122,21 @@ export default function ComplaintPage() {
     }
 
     try {
+      let imageUrl: string | undefined = undefined;
+      if (values.image) {
+        toast({ title: 'Uploading Image...', description: 'Please wait while we upload your image.' });
+        imageUrl = await uploadImageToCloudinary(values.image);
+      }
+
       const response = await fetch('/api/complaints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...values,
+          bookingId: values.bookingId,
+          complaint: values.complaint,
+          imageUrl: imageUrl,
           userId: user.uid,
-          user: user.displayName,
+          user: profile.name,
           building: profile.school,
         }),
       });
@@ -109,6 +159,8 @@ export default function ComplaintPage() {
       });
     }
   }
+  
+  const isSubmitting = form.formState.isSubmitting || isUploading;
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
@@ -183,21 +235,31 @@ export default function ComplaintPage() {
               <FormField
                 control={form.control}
                 name="image"
-                render={({ field }) => (
+                render={({ field: { onChange, value, ...rest } }) => (
                   <FormItem>
                     <FormLabel className='flex items-center'>
                       <ImageIcon className="mr-2 h-4 w-4" />
                       Upload an image (optional)
                     </FormLabel>
                     <FormControl>
-                      <Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)} />
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
+                        {...rest}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
-                 {form.formState.isSubmitting ? 'Submitting...' : 'Send Complaint'}
+              <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                 {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isUploading ? 'Uploading...' : 'Submitting...'}
+                    </>
+                  ) : 'Send Complaint'}
               </Button>
             </form>
           </Form>
@@ -206,4 +268,3 @@ export default function ComplaintPage() {
     </div>
   );
 }
-

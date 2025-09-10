@@ -8,7 +8,7 @@ const complaintSchema = z.object({
   user: z.string(),
   building: z.string(),
   complaint: z.string(),
-  image: z.any().optional(),
+  imageUrl: z.string().url().optional(),
   bookingId: z.string().optional(),
 });
 
@@ -63,4 +63,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
-
