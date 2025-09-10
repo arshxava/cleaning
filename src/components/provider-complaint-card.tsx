@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import {
   Clock,
   User,
@@ -20,13 +21,62 @@ import {
 import { Textarea } from './ui/textarea';
 import type { Complaint } from '@/lib/types';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
-type ProviderComplaintCardProps = Complaint & {
-    lastResponseHours: number;
-}
+type ProviderComplaintCardProps = {
+  complaint: Complaint & { lastResponseHours: number };
+  onUpdate?: () => void;
+};
 
-export function ProviderComplaintCard({ complaint }: { complaint: ProviderComplaintCardProps }) {
+export function ProviderComplaintCard({ complaint, onUpdate }: ProviderComplaintCardProps) {
+  const { toast } = useToast();
+  const [response, setResponse] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isOverdue = complaint.lastResponseHours > 24;
+
+  const handleSendResponse = async () => {
+    if (response.trim().length < 10) {
+        toast({
+            variant: 'destructive',
+            title: 'Response is too short',
+            description: 'Please provide a more detailed response.',
+        });
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        const res = await fetch('/api/complaint-responses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                complaintId: complaint._id,
+                responseText: response,
+                providerName: complaint.provider,
+                userId: complaint.userId,
+            })
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to send response.');
+        }
+
+        toast({
+            title: 'Response Sent',
+            description: 'Your response has been recorded and the complaint is marked as resolved.',
+        });
+        onUpdate?.(); // Trigger a refresh on the parent component
+        setResponse('');
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: (error as Error).message
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
 
   return (
     <Card className={cn(isOverdue && 'border-destructive')}>
@@ -61,23 +111,33 @@ export function ProviderComplaintCard({ complaint }: { complaint: ProviderCompla
         {complaint.imageUrl && (
           <div className="mt-4">
             <p className="text-sm font-medium mb-2 text-muted-foreground">Attached Image:</p>
-            <Image
-              src={complaint.imageUrl}
-              alt="Complaint image"
-              width={200}
-              height={200}
-              className="rounded-md object-cover border"
-              data-ai-hint="complaint photo"
-            />
+            <a href={complaint.imageUrl} target="_blank" rel="noopener noreferrer">
+              <Image
+                src={complaint.imageUrl}
+                alt="Complaint image"
+                width={200}
+                height={200}
+                className="rounded-md object-cover border hover:opacity-80 transition-opacity"
+                data-ai-hint="complaint photo"
+              />
+            </a>
           </div>
         )}
 
         <div>
-             <Textarea placeholder={`Write your response to ${complaint.user}...`}/>
+             <Textarea 
+                placeholder={`Write your response to ${complaint.user}...`}
+                value={response}
+                onChange={(e) => setResponse(e.target.value)}
+                rows={4}
+             />
         </div>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button>Send Response</Button>
+        <Button onClick={handleSendResponse} disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isSubmitting ? 'Sending...' : 'Send Response & Resolve'}
+        </Button>
       </CardFooter>
     </Card>
   );

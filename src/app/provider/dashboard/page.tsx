@@ -13,15 +13,10 @@ import { Booking } from '@/lib/types';
 import type { Complaint } from '@/lib/types';
 
 
-type ProviderComplaintCardProps = Complaint & {
-    lastResponseHours: number;
-}
-
-
 export default function ProviderDashboardPage() {
   const { profile } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [complaints, setComplaints] = useState<ProviderComplaintCardProps[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProviderData = async () => {
@@ -41,13 +36,7 @@ export default function ProviderDashboardPage() {
         if (complaintsRes.ok) {
             const allComplaints: Complaint[] = await complaintsRes.json();
             const providerComplaints = allComplaints.filter((c) => c.provider === profile.name);
-            const formattedComplaints: ProviderComplaintCardProps[] = providerComplaints.map((c) => ({
-              ...c,
-              lastResponseHours: c.lastResponseTimestamp
-                ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
-                : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000),
-            }));
-            setComplaints(formattedComplaints);
+            setComplaints(providerComplaints);
         }
 
     } catch (error) {
@@ -73,10 +62,20 @@ export default function ProviderDashboardPage() {
     )
   }
 
-  const handleBookingUpdate = () => {
+  const handleUpdate = () => {
     // Refetch data after an update
     fetchProviderData();
   }
+
+  const pendingComplaints = complaints
+    .filter(c => c.status === 'Pending')
+    .map(c => ({
+        ...c,
+        lastResponseHours: c.lastResponseTimestamp
+            ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
+            : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000),
+    }));
+
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
@@ -98,7 +97,7 @@ export default function ProviderDashboardPage() {
             <TabsTrigger value="complaints">
                 <MessageSquareWarning className="mr-2 h-4 w-4"/>
                 Complaints
-                {complaints.filter(c => c.status === 'Pending').length > 0 && <Badge className="ml-2">{complaints.filter(c => c.status === 'Pending').length}</Badge>}
+                {pendingComplaints.length > 0 && <Badge className="ml-2">{pendingComplaints.length}</Badge>}
             </TabsTrigger>
         </TabsList>
         <TabsContent value="jobs" className="mt-8">
@@ -122,7 +121,7 @@ export default function ProviderDashboardPage() {
                         .filter(b => b.status === status)
                         .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                         .map(booking => (
-                        <BookingCard key={booking._id} booking={booking} userRole="provider" onUpdate={handleBookingUpdate} />
+                        <BookingCard key={booking._id} booking={booking} userRole="provider" onUpdate={handleUpdate} />
                     ))}
                     {bookings.filter(b => b.status === status).length === 0 && (
                         <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
@@ -137,22 +136,15 @@ export default function ProviderDashboardPage() {
             <div className="grid gap-6 max-w-4xl mx-auto">
                 {loading ? (
                     <><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></>
-                ) : complaints.length > 0 ? (
-                    complaints
-                     .filter(c => c.status === 'Pending')
-                     .map((complaint) => (
-                        <ProviderComplaintCard key={complaint._id} complaint={complaint} />
+                ) : pendingComplaints.length > 0 ? (
+                    pendingComplaints.map((complaint) => (
+                        <ProviderComplaintCard key={complaint._id} complaint={complaint} onUpdate={handleUpdate}/>
                     ))
                 ) : (
                     <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
                         <p>You have no pending complaints.</p>
                     </div>
                 )}
-                 {complaints.filter(c => c.status === 'Pending').length === 0 && !loading && (
-                    <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
-                        <p>You have no pending complaints.</p>
-                    </div>
-                 )}
             </div>
         </TabsContent>
        </Tabs>
