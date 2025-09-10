@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { Building, Home, Hash } from 'lucide-react';
+import { Building, Home, Hash, MapPin, DollarSign } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -30,13 +30,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   name: z.string().min(3, 'Building name must be at least 3 characters.'),
+  location: z.string().min(3, 'Location must be at least 3 characters.'),
   floors: z.coerce.number().min(1, 'A building must have at least 1 floor.'),
+  perRoomPrice: z.coerce.number().min(1, 'Price must be greater than 0.'),
 });
 
 type Building = {
   _id: string;
   name: string;
+  location: string;
   floors: number;
+  perRoomPrice: number;
   createdAt: string;
 }
 
@@ -49,7 +53,9 @@ export default function BuildingsPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      location: '',
       floors: 1,
+      perRoomPrice: 50,
     },
   });
 
@@ -146,6 +152,22 @@ export default function BuildingsPage() {
                   />
                   <FormField
                     control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Location</FormLabel>
+                        <FormControl>
+                           <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="e.g., Toronto, ON" {...field} className="pl-10" />
+                           </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="floors"
                     render={({ field }) => (
                       <FormItem>
@@ -153,6 +175,22 @@ export default function BuildingsPage() {
                         <FormControl>
                           <div className="relative">
                             <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="number" {...field} className="pl-10" />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="perRoomPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price per Room (CAD)</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input type="number" {...field} className="pl-10" />
                           </div>
                         </FormControl>
@@ -180,16 +218,22 @@ export default function BuildingsPage() {
               <div className="space-y-4">
                 {loading ? (
                   <>
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
                   </>
                 ) : buildings.length > 0 ? (
                   buildings.map((building) => (
-                    <div key={building._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
+                    <div key={building._id} className="flex items-center justify-between p-4 border rounded-lg gap-4">
+                      <div className="flex-1">
                         <p className="font-semibold">{building.name}</p>
-                        <p className="text-sm text-muted-foreground">{building.floors} floors</p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                          <MapPin className="h-3 w-3" /> {building.location}
+                        </p>
+                      </div>
+                       <div className="text-right">
+                          <p className="font-semibold text-lg">${building.perRoomPrice.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">{building.floors} floors</p>
                       </div>
                       <Button variant="outline" size="sm">Edit</Button>
                     </div>
