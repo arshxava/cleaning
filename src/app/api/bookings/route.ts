@@ -8,12 +8,15 @@ const bookingSchema = z.object({
   userId: z.string(),
   userName: z.string(),
   building: z.string(),
-  roomType: z.string(),
+  floor: z.string().optional(),
+  apartmentType: z.string().optional(),
+  apartmentNumber: z.string().optional(),
+  roomCount: z.number().optional(),
   service: z.string(),
   date: z.string(), // Expecting 'yyyy-MM-dd'
   time: z.string(),
-  timezone: z.string(),
   frequency: z.string(),
+  price: z.number(),
 });
 
 const updateBookingSchema = z.object({
@@ -31,13 +34,22 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db();
 
-    const buildings = await db.collection('buildings').find({}).toArray();
-    const assignedProvider = buildings.length > 0 ? (await db.collection('users').findOne({ role: 'provider', assignedBuildings: data.building })) : null;
+    // Find the building to determine the assigned provider.
+    const buildingDoc = await db.collection('buildings').findOne({ name: data.building });
+    let providerName = 'Unassigned';
+
+    if (buildingDoc) {
+        // Find a provider who is assigned to this building's ID
+        const provider = await db.collection('users').findOne({ role: 'provider', assignedBuildings: buildingDoc._id.toString() });
+        if (provider) {
+            providerName = provider.name;
+        }
+    }
 
     const bookingData = {
       ...data,
       status: 'Aligned',
-      provider: assignedProvider ? assignedProvider.name : 'Unassigned', // Assign provider or mark as unassigned
+      provider: providerName,
       beforeImages: [],
       afterImages: [],
       createdAt: new Date(),

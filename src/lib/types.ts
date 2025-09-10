@@ -20,11 +20,15 @@ export type Booking = {
   userId: string;
   userName: string;
   building: string;
-  roomType: string;
+  floor?: string;
+  apartmentType?: string;
+  apartmentNumber?: string;
+  roomCount?: number;
   service: string;
   date: string;
   time: string;
-  timezone: string;
+  frequency: string;
+  price: number;
   status: BookingStatus;
   provider: string;
   beforeImages: string[];

@@ -172,7 +172,6 @@ export default function BookingPage() {
                 time: time,
                 frequency: frequency,
                 price: price,
-                roomType: profile.roomSize, 
             }),
         });
 
@@ -346,7 +345,7 @@ export default function BookingPage() {
           )}
 
           {currentStep === 2 && (
-            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-8 justify-center items-start">
               <Calendar
                 mode="single"
                 selected={date}
@@ -354,7 +353,7 @@ export default function BookingPage() {
                 className="rounded-md border"
                 disabled={(day) => day < new Date(new Date().setDate(new Date().getDate() - 1))}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 self-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 self-start w-full sm:w-auto">
                 {timeSlots.map((slot) => (
                   <Button
                     key={slot}
