@@ -22,9 +22,13 @@ export async function POST(request: Request) {
 
     const usersCollection = db.collection('users');
     
+    // Ensure the uid is used as the document's primary key
+    const { uid, ...restOfUserData } = userData;
+
     const result = await usersCollection.insertOne({
-        _id: userData.uid, // Use Firebase UID as the document ID
-        ...userData,
+        _id: uid, // Use Firebase UID as the document ID
+        uid: uid,
+        ...restOfUserData,
         createdAt: new Date(),
     });
 
@@ -32,6 +36,10 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid user data', errors: error.errors }, { status: 400 });
+    }
+    // Handle potential duplicate key error if a user with the same _id (uid) already exists
+    if (error instanceof Error && (error as any).code === 11000) {
+        return NextResponse.json({ message: 'User with this UID already exists.' }, { status: 409 });
     }
     console.error('Error creating user:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
