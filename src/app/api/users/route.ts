@@ -9,7 +9,7 @@ import { credential } from 'firebase-admin';
 // Initialize Firebase Admin SDK
 // Make sure the path to your service account key is correct.
 // NOTE: It's better to use environment variables for service account keys in production.
-const serviceAccount = require('../../../../campus-clean-jhzd4-firebase-adminsdk-v71t1-9c8f3e582d.json');
+const serviceAccount = require('../../../../../campus-clean-jhzd4-firebase-adminsdk-v71t1-9c8f3e582d.json');
 
 if (!getApps().length) {
   initializeApp({
