@@ -28,14 +28,17 @@ import {
 } from '@/components/ui/dialog';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Booking } from '@/lib/types';
+import { Booking, BookingStatus } from '@/lib/types';
 import { BookingDetails } from '@/components/booking-details';
+
+const statusFilters: (BookingStatus | 'All')[] = ['All', 'Aligned', 'In Process', 'Completed'];
 
 export default function OngoingServicesPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'All'>('All');
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -62,7 +65,9 @@ export default function OngoingServicesPage() {
     setIsDialogOpen(true);
   };
   
-  const sortedBookings = bookings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredBookings = bookings
+    .filter(booking => statusFilter === 'All' || booking.status === statusFilter)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <>
@@ -73,6 +78,18 @@ export default function OngoingServicesPage() {
         <p className="text-muted-foreground mt-2">
           Track the status of all cleaning jobs from booking to completion.
         </p>
+      </div>
+
+       <div className="flex items-center gap-2 mb-4">
+        {statusFilters.map(status => (
+           <Button
+            key={status}
+            variant={statusFilter === status ? 'default' : 'outline'}
+            onClick={() => setStatusFilter(status)}
+          >
+            {status}
+          </Button>
+        ))}
       </div>
 
       <div className="rounded-lg border bg-card">
@@ -96,7 +113,7 @@ export default function OngoingServicesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedBookings.map((booking) => (
+              {filteredBookings.length > 0 ? filteredBookings.map((booking) => (
                 <TableRow key={booking._id}>
                   <TableCell>
                     <div className="font-medium">{booking.service}</div>
@@ -134,7 +151,13 @@ export default function OngoingServicesPage() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                 <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                        No bookings found for the selected status.
+                    </TableCell>
+                 </TableRow>
+              )}
             </TableBody>
           </Table>
         )}
