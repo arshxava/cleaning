@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
+import type { UserProfile } from '@/lib/types';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -46,12 +47,27 @@ export default function SignInPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Fetch user profile to check role
+      const response = await fetch(`/api/users/${user.uid}`);
+      let profile: UserProfile | null = null;
+      if (response.ok) {
+        profile = await response.json();
+      }
+
       toast({
         title: 'Signed In Successfully!',
         description: "Welcome back! You're now logged in.",
       });
-      router.push('/dashboard');
+
+      if (profile?.role === 'admin') {
+        router.push('/admin/complaints');
+      } else {
+        router.push('/dashboard');
+      }
+
     } catch (error: any) {
       console.error('Authentication error:', error);
        let description = 'An unexpected error occurred. Please try again.';

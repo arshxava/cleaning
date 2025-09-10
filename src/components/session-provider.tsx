@@ -72,7 +72,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
     } else if (user && (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up'))) {
-       router.push('/dashboard');
+      if (profile?.role === 'admin') {
+        router.push('/admin/complaints');
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [user, profile, loading, router, pathname]);
 
