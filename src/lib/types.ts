@@ -1,3 +1,4 @@
+
 export type UserProfile = {
   uid: string;
   name: string;
@@ -6,6 +7,6 @@ export type UserProfile = {
   notificationPreference: 'email' | 'sms';
   school: string;
   roomSize: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'provider';
   createdAt: Date;
 };

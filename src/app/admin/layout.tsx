@@ -13,6 +13,7 @@ import {
   Users,
   Building,
   MessageSquareWarning,
+  HardHat,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -66,7 +67,8 @@ export default function AdminLayout({
     { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
     { href: '/admin/services', label: 'Services', icon: Package, disabled: false },
-    { href: '/admin/users', label: 'Users', icon: Users, disabled: true },
+    { href: '/admin/providers', label: 'Providers', icon: HardHat, disabled: false },
+    { href: '/admin/users', label: 'Users', icon: Users, disabled: false },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
 
