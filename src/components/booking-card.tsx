@@ -37,6 +37,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
     const getSignature = async (paramsToSign: Record<string, any>) => {
         const response = await fetch('/api/cloudinary/sign', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paramsToSign }),
         });
         const { signature } = await response.json();
@@ -45,7 +46,12 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
 
     const uploadImageToCloudinary = async (file: File) => {
         const timestamp = Math.round(new Date().getTime() / 1000);
-        const signature = await getSignature({ timestamp });
+        
+        const paramsToSign = {
+          timestamp: timestamp,
+          // Add any other parameters you want to sign
+        };
+        const signature = await getSignature(paramsToSign);
 
         const formData = new FormData();
         formData.append('file', file);
@@ -61,6 +67,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
         });
 
         if (!response.ok) {
+            console.error('Cloudinary upload response:', await response.text());
             throw new Error('Image upload failed.');
         }
 
@@ -101,7 +108,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
                 const newImageUrls = await Promise.all(uploadPromises);
 
                 const existingImages = type === 'before' ? booking.beforeImages : booking.afterImages;
-                const updatedImages = [...existingImages, ...newImageUrls].slice(0, 5);
+                const updatedImages = [...(existingImages || []), ...newImageUrls].slice(0, 5);
                 
                 const updateData: Partial<Booking> = {
                     ...(type === 'before' && { beforeImages: updatedImages, status: 'In Process' }),
@@ -112,12 +119,15 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
                 
             } catch (error) {
                  toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload images to Cloudinary.' });
+                 console.error(error);
             }
         });
     };
 
     const removeImage = (type: 'before' | 'after', imageUrl: string) => {
-       const updatedImages = (type === 'before' ? booking.beforeImages : booking.afterImages).filter(url => url !== imageUrl);
+       const currentImages = type === 'before' ? booking.beforeImages : booking.afterImages;
+       const updatedImages = (currentImages || []).filter(url => url !== imageUrl);
+       
        if (type === 'before') {
            updateBooking({ beforeImages: updatedImages });
        } else {
@@ -151,7 +161,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
             </Button>
         )}
 
-        {booking.beforeImages.length > 0 && (
+        {booking.beforeImages?.length > 0 && (
              <div className="space-y-2">
                 <p className="font-medium text-xs text-muted-foreground">Before Images</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -173,7 +183,7 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
             </Button>
         )}
 
-        {booking.afterImages.length > 0 && (
+        {booking.afterImages?.length > 0 && (
              <div className="space-y-2">
                 <p className="font-medium text-xs text-muted-foreground">After Images</p>
                 <div className="grid grid-cols-3 gap-2">
