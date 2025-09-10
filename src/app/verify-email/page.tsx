@@ -66,7 +66,7 @@ export default function VerifyEmailPage() {
                 <CardTitle className="text-2xl font-headline">Verifying Your Email...</CardTitle>
                 <CardDescription>
                     Please wait while we verify your email address.
-                </CardDescription>
+                </Description>
             </CardHeader>
             <CardContent className="text-center">
                 <div className="flex justify-center items-center">
