@@ -56,15 +56,6 @@ const timeSlots = [
   '05:00 PM - 07:00 PM',
 ];
 
-const timezones = [
-    { value: 'America/New_York', label: 'Eastern Time (ET)' },
-    { value: 'America/Chicago', label: 'Central Time (CT)' },
-    { value: 'America/Denver', label: 'Mountain Time (MT)' },
-    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-    { value: 'America/Halifax', label: 'Atlantic Time (AT)' },
-    { value: 'America/St_Johns', label: 'Newfoundland Time (NT)' },
-];
-
 type BuildingData = {
   _id: string;
   name: string;
@@ -80,7 +71,6 @@ export default function BookingPage() {
   const [service, setService] = useState<string>();
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
-  const [timezone, setTimezone] = useState<string>('America/New_York');
   const [frequency, setFrequency] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -104,7 +94,7 @@ export default function BookingPage() {
   const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
 
   const handleBooking = async () => {
-    if (!user || !profile || !building || !service || !date || !time || !timezone || !frequency) {
+    if (!user || !profile || !building || !service || !date || !time || !frequency) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
         return;
     }
@@ -122,7 +112,7 @@ export default function BookingPage() {
                 service: service,
                 date: format(date, 'yyyy-MM-dd'),
                 time: time,
-                timezone: timezone,
+                timezone: 'America/New_York', // Hardcoded timezone
                 frequency: frequency,
                 roomType: profile.roomSize, // Assuming room size is part of the user profile
             }),
@@ -143,7 +133,6 @@ export default function BookingPage() {
         setService(undefined);
         setDate(undefined);
         setTime(undefined);
-        setTimezone('America/New_York');
         setFrequency(undefined);
 
     } catch (error) {
@@ -240,22 +229,6 @@ export default function BookingPage() {
                     className="rounded-md border p-0"
                     disabled={(day) => day < new Date(new Date().setDate(new Date().getDate() - 1))}
                   />
-                  <div>
-                    <Label>Timezone</Label>
-                     <Select onValueChange={setTimezone} value={timezone}>
-                        <div className="relative mt-2">
-                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <SelectTrigger className="pl-10">
-                                <SelectValue placeholder="Select your timezone" />
-                            </SelectTrigger>
-                        </div>
-                        <SelectContent>
-                            {timezones.map((tz) => (
-                                <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                     </Select>
-                  </div>
                 </div>
               <div className="grid grid-cols-1 gap-2 self-start">
                 {timeSlots.map((slot) => (
@@ -313,11 +286,6 @@ export default function BookingPage() {
                     <span className="text-muted-foreground">Time:</span>
                     <span className="font-medium">{time || 'Not selected'}</span>
                   </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Timezone:</span>
-                    <span className="font-medium">{timezones.find(tz => tz.value === timezone)?.label || 'Not selected'}</span>
-                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Frequency:</span>
                     <span className="font-medium">{frequency || 'Not selected'}</span>
@@ -335,7 +303,7 @@ export default function BookingPage() {
             <ChevronLeft className="mr-2" /> Previous
           </Button>
           {currentStep < steps.length ? (
-            <Button onClick={nextStep} disabled={ (currentStep === 1 && (!building || !service)) || (currentStep === 2 && (!date || !time || !timezone)) || (currentStep === 3 && !frequency) }>
+            <Button onClick={nextStep} disabled={ (currentStep === 1 && (!building || !service)) || (currentStep === 2 && (!date || !time)) || (currentStep === 3 && !frequency) }>
               Next <ChevronRight className="ml-2" />
             </Button>
           ) : (
@@ -348,3 +316,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
