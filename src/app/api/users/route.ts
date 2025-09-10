@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -42,39 +43,24 @@ export async function POST(request: Request) {
 
     // --- Path for Regular User Sign-up ---
     if (userData.role === 'user') {
-      const uid = userData.uid;
-
-      if (!uid) {
-        return NextResponse.json(
-          { message: 'User UID is missing for user role.' },
-          { status: 400 }
-        );
+      if (!userData.uid) {
+        return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
       }
-
-      const existingUser = await usersCollection.findOne({ uid });
+      
+      const existingUser = await usersCollection.findOne({ uid: userData.uid });
       if (existingUser) {
-        return NextResponse.json(
-          { message: 'User profile already exists.', uid },
-          { status: 200 }
-        );
+        return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
       }
 
-      const dataToInsert = {
-        ...userData,
-        uid,
-        createdAt: new Date(),
-      };
-      await usersCollection.insertOne(dataToInsert);
-
-      return NextResponse.json(
-        { message: 'User profile created successfully.', uid },
-        { status: 201 }
-      );
+      const dataToInsert = { ...userData, createdAt: new Date() };
+      const result = await usersCollection.insertOne(dataToInsert);
+      
+      return NextResponse.json({ message: 'User profile created successfully.', uid: result.insertedId }, { status: 201 });
     }
 
     // --- Path for Admin Creating a Provider ---
     if (userData.role === 'provider') {
-      const existingProfile = await usersCollection.findOne({ email: userData.email });
+       const existingProfile = await usersCollection.findOne({ email: userData.email });
       if (existingProfile) {
         return NextResponse.json(
           { message: 'A user with this email already exists in the database.' },
@@ -84,14 +70,16 @@ export async function POST(request: Request) {
 
       let uid;
       try {
+        // Check if user exists in Firebase Auth
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
       } catch (error: any) {
+        // If user not found, create one in Firebase Auth
         if (error.code === 'auth/user-not-found') {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             displayName: userData.name,
-            emailVerified: true, // Providers created by admin are auto-verified
+            emailVerified: true, 
           });
           uid = newUserRecord.uid;
         } else {
@@ -100,11 +88,7 @@ export async function POST(request: Request) {
         }
       }
       
-      const dataToInsert = {
-        ...userData,
-        uid: uid, 
-        createdAt: new Date(),
-      };
+      const dataToInsert = { ...userData, uid: uid, createdAt: new Date() };
       await usersCollection.insertOne(dataToInsert);
 
       return NextResponse.json({ message: 'Provider created successfully', uid: uid }, { status: 201 });
