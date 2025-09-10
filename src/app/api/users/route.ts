@@ -5,9 +5,9 @@ import { z } from 'zod';
 import { getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
+import 'dotenv/config';
 
 // Initialize Firebase Admin SDK
-// This setup reads credentials from an environment variable for security and build reliability.
 if (!getApps().length) {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw new Error('Missing FIREBASE_SERVICE_ACCOUNT environment variable');
@@ -45,9 +45,17 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
-    // For any user type, first check if they exist in our database by email.
-    const existingUserInDB = await usersCollection.findOne({ email: userData.email });
-    if (existingUserInDB) {
+    // For regular user sign-up, the UID is passed from the client. Check if it already exists.
+    if (userData.uid) {
+        const existingUserByUid = await usersCollection.findOne({ uid: userData.uid });
+        if (existingUserByUid) {
+            return NextResponse.json({ message: 'User already exists.', user: existingUserByUid }, { status: 200 });
+        }
+    }
+    
+    // For any user type, check if the email is already in our database.
+    const existingUserByEmail = await usersCollection.findOne({ email: userData.email });
+    if (existingUserByEmail) {
         return NextResponse.json({ message: 'A user with this email already exists in the database.' }, { status: 409 });
     }
 
@@ -56,24 +64,20 @@ export async function POST(request: Request) {
     // Logic for creating a new provider by an admin, where UID is not passed from client
     if (userData.role === 'provider' && !userData.uid) {
       try {
-        // Create the user in Firebase Auth
         const userRecord = await getAuth().createUser({
           email: userData.email,
           displayName: userData.name,
         });
         finalUid = userRecord.uid;
       } catch (error: any) {
-        // If the user already exists in Firebase Auth (e.g. created manually)
         if (error.code === 'auth/email-already-exists') {
-          // Get the existing user's UID to link them in our database.
           const userRecord = await getAuth().getUserByEmail(userData.email);
           finalUid = userRecord.uid;
         } else {
-           throw error; // Re-throw other Firebase Admin errors
+           throw error; 
         }
       }
     } else if (userData.role === 'user' && !userData.uid) {
-      // This case handles regular user sign-up where UID must be passed from the client Firebase SDK
       return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
     }
 
