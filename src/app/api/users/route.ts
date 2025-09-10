@@ -48,11 +48,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'User UID is required for user role registration.' }, { status: 400 });
       }
 
+      // Check if a profile with this UID already exists to prevent duplicates
       const existingUser = await usersCollection.findOne({ uid: userData.uid });
       if (existingUser) {
+        // The profile already exists, which is fine. Return success.
         return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
       }
 
+      // Profile doesn't exist, create it.
       const dataToInsert = {
         ...userData,
         createdAt: new Date(),
@@ -70,11 +73,11 @@ export async function POST(request: Request) {
 
       let uid;
       try {
-        // Check if an auth user already exists
+        // Check if an auth user already exists in Firebase
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
       } catch (error: any) {
-        // If not, create a new auth user
+        // If user is not found in Firebase Auth, create a new one.
         if (error.code === 'auth/user-not-found') {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
@@ -83,7 +86,8 @@ export async function POST(request: Request) {
           });
           uid = newUserRecord.uid;
         } else {
-          throw error; // Re-throw other Firebase errors
+          // Re-throw other Firebase-related errors
+          throw error;
         }
       }
       
