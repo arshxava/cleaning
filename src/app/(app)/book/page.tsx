@@ -20,6 +20,7 @@ import {
   Hash,
   DoorOpen,
   Layers,
+  DollarSign,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -62,17 +63,27 @@ const timeSlots = [
   '05:00 PM - 07:00 PM',
 ];
 
-const serviceBasePrices = {
-  'Standard Clean': 30,
-  'Deep Clean': 50,
-  'Move-In/Out Clean': 70,
+const serviceKeyMapping: { [key: string]: 'standard' | 'deep' | 'move-out' } = {
+  'Standard Clean': 'standard',
+  'Deep Clean': 'deep',
+  'Move-In/Out Clean': 'move-out',
+};
+
+type RoomType = {
+  name: string;
+  count: number;
+  prices: {
+    standard: number;
+    deep: number;
+    'move-out': number;
+  };
 };
 
 type BuildingData = {
   _id: string;
   name: string;
   floors: number;
-  roomTypes: { name: string }[];
+  roomTypes: RoomType[];
 };
 
 export default function BookingPage() {
@@ -88,7 +99,7 @@ export default function BookingPage() {
   const [apartmentType, setApartmentType] = useState<string>();
   const [apartmentNumber, setApartmentNumber] = useState('');
   const [roomCount, setRoomCount] = useState(1);
-  const [service, setService] = useState<keyof typeof serviceBasePrices | undefined>();
+  const [service, setService] = useState<keyof typeof serviceKeyMapping | undefined>();
   const [price, setPrice] = useState(0);
 
   const [date, setDate] = useState<Date | undefined>();
@@ -120,15 +131,18 @@ export default function BookingPage() {
   }
 
   useEffect(() => {
-    if (service && roomCount > 0) {
-      const basePrice = serviceBasePrices[service] || 0;
-      // Example pricing logic: base price + $10 for each additional room
-      const calculatedPrice = basePrice + (roomCount - 1) * 10;
-      setPrice(calculatedPrice);
+    if (service && apartmentType && roomCount > 0 && selectedBuilding) {
+      const roomTypeData = selectedBuilding.roomTypes.find(rt => rt.name === apartmentType);
+      if (roomTypeData) {
+        const serviceKey = serviceKeyMapping[service];
+        const pricePerRoom = roomTypeData.prices[serviceKey] || 0;
+        const calculatedPrice = pricePerRoom * roomCount;
+        setPrice(calculatedPrice);
+      }
     } else {
       setPrice(0);
     }
-  }, [service, roomCount]);
+  }, [service, apartmentType, roomCount, selectedBuilding]);
 
   const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
   const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
@@ -297,7 +311,7 @@ export default function BookingPage() {
 
               <div className="space-y-4">
                 <Label>Service Type</Label>
-                <Select onValueChange={(value: keyof typeof serviceBasePrices) => setService(value)} value={service}>
+                <Select onValueChange={(value: keyof typeof serviceKeyMapping) => setService(value)} value={service}>
                   <div className="relative">
                     <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <SelectTrigger className="pl-10">
@@ -320,12 +334,19 @@ export default function BookingPage() {
                     <Button variant="outline" size="icon" onClick={() => setRoomCount(roomCount + 1)}><Plus className="h-4 w-4" /></Button>
                   </div>
               </div>
+              
+              {(service && price > 0) && (
+                 <div className="md:col-span-2 flex justify-end items-center gap-4 p-4 bg-primary/10 rounded-md border border-primary/20">
+                     <p className="font-semibold text-lg text-primary">Estimated Total:</p>
+                     <p className="text-2xl font-bold text-primary flex items-center"><DollarSign className="h-5 w-5" />{price.toFixed(2)}</p>
+                </div>
+              )}
 
             </div>
           )}
 
           {currentStep === 2 && (
-            <div className="flex flex-col sm:flex-row gap-8 justify-center">
+            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
               <Calendar
                 mode="single"
                 selected={date}
