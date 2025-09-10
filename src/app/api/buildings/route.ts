@@ -3,12 +3,20 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 
+const roomTypeSchema = z.object({
+  name: z.string().min(1),
+  count: z.coerce.number().min(1),
+  prices: z.object({
+    standard: z.coerce.number().min(0),
+    deep: z.coerce.number().min(0),
+    'move-out': z.coerce.number().min(0),
+  }),
+});
+
 const buildingSchema = z.object({
   name: z.string().min(3),
   location: z.string().min(3),
-  floors: z.coerce.number().min(1),
-  perRoomPrice: z.coerce.number().min(1),
-  services: z.array(z.string()),
+  roomTypes: z.array(roomTypeSchema).min(1),
 });
 
 export async function POST(request: Request) {
