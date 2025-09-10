@@ -30,36 +30,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        if (!firebaseUser.emailVerified && pathname !== '/verify-email' && !pathname.startsWith('/sign-in')) {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-           // Optional: You might want to redirect to sign-in if an unverified user tries to access other pages.
-           // router.push('/sign-in');
-        } else {
-          setUser(firebaseUser);
-          try {
-            const response = await fetch(`/api/users/${firebaseUser.uid}`);
-            if (response.ok) {
-              const profileData: UserProfile = await response.json();
-              setProfile(profileData);
-            } else {
-              // This can happen if the user exists in Firebase Auth but not in your MongoDB collection.
-              // For example, a provider who was just created but profile not saved yet.
-              // We'll set profile to a base object to avoid routing errors.
-              setProfile({
-                uid: firebaseUser.uid,
-                name: firebaseUser.displayName || 'User',
-                email: firebaseUser.email!,
-                role: 'user', // Default role
-              } as UserProfile);
-            }
-          } catch (e) {
-            setProfile(null);
-            console.error("Failed to fetch user profile", e);
-          } finally {
-            setLoading(false);
+        // Always set the Firebase user first
+        setUser(firebaseUser);
+        try {
+          const response = await fetch(`/api/users/${firebaseUser.uid}`);
+          if (response.ok) {
+            const profileData: UserProfile = await response.json();
+            setProfile(profileData);
+          } else {
+            setProfile(null); // Explicitly set to null if profile not found
           }
+        } catch (e) {
+          console.error("Failed to fetch user profile", e);
+          setProfile(null);
+        } finally {
+          setLoading(false);
         }
       } else {
         setUser(null);
@@ -69,21 +54,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [pathname]);
+  }, []); // Run only once on mount
 
   useEffect(() => {
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route) && route !== '/verify-email'));
+    const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)));
     const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
     const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
+    // If user is not logged in and the route is not public, redirect to sign-in
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
+    // If user is logged in, but profile is still loading, do nothing yet.
+    if (user && !profile) {
+      // It's possible the profile is still being fetched. We wait.
+      // A timeout could be added here to handle profiles that never load.
+      return;
+    }
+
     if (user && profile) {
+      // If user is on an auth page, redirect them to their dashboard
       if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
         if (profile.role === 'admin') {
           router.push('/admin/complaints');
@@ -95,27 +89,45 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      // Enforce role-based access
       if (pathIsAdmin && profile.role !== 'admin') {
-        router.push('/dashboard');
+        router.push('/dashboard'); // or a specific unauthorized page
         return;
       }
       
       if (pathIsProvider && profile.role !== 'provider') {
+        router.push('/dashboard'); // or a specific unauthorized page
+        return;
+      }
+
+      if (profile.role === 'user' && (pathIsAdmin || pathIsProvider)) {
         router.push('/dashboard');
         return;
       }
     }
   }, [user, profile, loading, router, pathname]);
 
-  const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
-  if (loading && !isAuthPage && !publicRoutes.includes(pathname)) {
+  // Show a loading skeleton for protected routes while the session is being verified.
+  if (loading && !publicRoutes.includes(pathname)) {
     return (
-        <div className="container mx-auto p-4">
-            <div className="space-y-4">
-                <Skeleton className="h-12 w-1/4" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-            </div>
+        <div className="flex flex-col min-h-screen">
+            <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+                 <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
+                    <Skeleton className="h-8 w-32" />
+                    <div className="ml-auto flex items-center gap-4">
+                        <Skeleton className="h-8 w-20" />
+                    </div>
+                </div>
+            </header>
+            <main className="flex-grow">
+                <div className="container mx-auto p-4 md:p-6 lg:p-8">
+                    <div className="space-y-4">
+                        <Skeleton className="h-12 w-1/4" />
+                        <Skeleton className="h-48 w-full" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
+                </div>
+            </main>
         </div>
     );
   }

@@ -1,6 +1,5 @@
 import Footer from '@/components/footer';
 import Header from '@/components/header';
-import { SessionProvider } from '@/components/session-provider';
 
 export default function AppLayout({
   children,

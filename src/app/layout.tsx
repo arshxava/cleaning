@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { SessionProvider } from '@/components/session-provider';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Campus Clean',
@@ -28,10 +28,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased bg-background">
-        <SessionProvider>
+        <Providers>
           {children}
           <Toaster />
-        </SessionProvider>
+        </Providers>
       </body>
     </html>
   );
