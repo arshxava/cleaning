@@ -30,19 +30,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        if (!firebaseUser.emailVerified && pathname !== '/verify-email') {
+        if (!firebaseUser.emailVerified && pathname !== '/verify-email' && !pathname.startsWith('/sign-in')) {
           setUser(null);
           setProfile(null);
           setLoading(false);
+           // Optional: You might want to redirect to sign-in if an unverified user tries to access other pages.
+           // router.push('/sign-in');
         } else {
           setUser(firebaseUser);
           try {
             const response = await fetch(`/api/users/${firebaseUser.uid}`);
             if (response.ok) {
-              const profileData = await response.json();
+              const profileData: UserProfile = await response.json();
               setProfile(profileData);
             } else {
-              setProfile(null);
+              // This can happen if the user exists in Firebase Auth but not in your MongoDB collection.
+              // For example, a provider who was just created but profile not saved yet.
+              // We'll set profile to a base object to avoid routing errors.
+              setProfile({
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'User',
+                email: firebaseUser.email!,
+                role: 'user', // Default role
+              } as UserProfile);
             }
           } catch (e) {
             setProfile(null);
@@ -64,7 +74,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route)));
+    const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route) && route !== '/verify-email'));
     const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
     const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
@@ -73,11 +83,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (user) {
+    if (user && profile) {
       if (pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up')) {
-        if (profile?.role === 'admin') {
+        if (profile.role === 'admin') {
           router.push('/admin/complaints');
-        } else if (profile?.role === 'provider') {
+        } else if (profile.role === 'provider') {
           router.push('/provider/dashboard');
         } else {
           router.push('/dashboard');
@@ -85,12 +95,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      if (pathIsAdmin && profile?.role !== 'admin') {
+      if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard');
         return;
       }
       
-      if (pathIsProvider && profile?.role !== 'provider') {
+      if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
         return;
       }

@@ -55,6 +55,8 @@ export default function SignInPage() {
       
       // If the profile doesn't exist or fetch fails, they are a regular user.
       if (!response.ok) {
+        // This case might apply to users created before the profile system, or if the API is down.
+        // Defaulting to user dashboard.
         toast({
           title: 'Signed In Successfully!',
           description: "Welcome back! Redirecting to your dashboard.",
@@ -67,7 +69,7 @@ export default function SignInPage() {
 
       toast({
         title: 'Signed In Successfully!',
-        description: `Welcome back, ${profile.role}! You're now logged in.`,
+        description: `Welcome back, ${profile.name}! You're now logged in.`,
       });
 
       if (profile?.role === 'admin') {
