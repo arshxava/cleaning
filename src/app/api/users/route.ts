@@ -74,16 +74,20 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
+    // For all roles, first check if a profile already exists in our DB
+    const existingProfile = await usersCollection.findOne({ email: userData.email });
+    if (existingProfile) {
+        return NextResponse.json(
+            { message: 'A user with this email already exists in the database.' },
+            { status: 409 }
+        );
+    }
+
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
       }
       
-      const existingUser = await usersCollection.findOne({ uid: userData.uid });
-      if (existingUser) {
-        return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
-      }
-
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       const result = await usersCollection.insertOne(dataToInsert);
@@ -97,38 +101,34 @@ export async function POST(request: Request) {
           return NextResponse.json({ message: 'Password is required for provider creation.' }, { status: 400 });
       }
 
-      const existingProfile = await usersCollection.findOne({ email: userData.email });
-      if (existingProfile) {
-        return NextResponse.json(
-          { message: 'A user with this email already exists in the database.' },
-          { status: 409 }
-        );
-      }
-
       let uid;
       try {
+        // Check if user exists in Firebase Auth
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
       } catch (error: any) {
+        // If user does not exist in Firebase Auth, create them
         if (error.code === 'auth/user-not-found') {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
             password: userData.password,
             displayName: userData.name,
-            emailVerified: true,
+            emailVerified: true, // Providers are created by admin, so we can assume verified
           });
           uid = newUserRecord.uid;
         } else {
+          // Re-throw other Firebase errors
           throw error;
         }
       }
       
+      // Now, save the provider profile to MongoDB
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, uid: uid, createdAt: new Date() };
       const result = await usersCollection.insertOne(dataToInsert);
       const createdUser = await usersCollection.findOne({_id: result.insertedId});
 
-      // Send welcome email after successful creation
+      // Send welcome email with the temporary password
       await sendWelcomeEmail(userData.email, userData.name, userData.password);
 
       return NextResponse.json(createdUser, { status: 201 });
