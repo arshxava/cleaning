@@ -24,7 +24,7 @@ import { useSession } from '@/components/session-provider';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Booking } from '@/lib/types'; 
-import { Complaint } from '@/app/admin/complaints/complaint-analysis-card'; 
+import { Complaint } from '@/lib/types'; 
 
 export default function DashboardPage() {
   const { user, profile } = useSession();
@@ -104,7 +104,9 @@ export default function DashboardPage() {
                 <span className='font-semibold'>Role:</span>
                 <Badge variant={profile.role === 'admin' ? 'destructive' : 'secondary'}>{profile.role}</Badge>
               </div>
-              <Button variant="outline" className="w-full mt-2">Edit Profile</Button>
+              <Button asChild variant="outline" className="w-full mt-2">
+                 <Link href="/edit-profile">Edit Profile</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -223,3 +225,4 @@ export default function DashboardPage() {
   );
 }
 
+    

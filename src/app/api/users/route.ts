@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -35,6 +36,9 @@ const userSchema = z.object({
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   assignedBuildings: z.array(z.string()).optional(),
 });
+
+export const updateUserSchema = userSchema.partial().omit({ email: true, role: true });
+
 
 export async function POST(request: Request) {
   try {
@@ -132,3 +136,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+    
