@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -24,14 +23,14 @@ const providerRoutePrefix = '/provider';
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start as true
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // Set loading true whenever auth state might change
       if (firebaseUser) {
-        // User is authenticated with Firebase, now get profile
         try {
           const response = await fetch(`/api/users/${firebaseUser.uid}`);
           if (response.ok) {
@@ -39,9 +38,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setUser(firebaseUser);
             setProfile(profileData);
           } else {
-            // This case is critical. A user is authenticated with Firebase, but no profile exists in our DB.
-            // It can occur if DB entry fails after signup.
-            // Signing them out forces a clean slate.
+            // This case happens if the DB entry failed after signup.
+            // Signing them out forces a clean slate and prevents loops.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setUser(null);
@@ -57,29 +55,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
       }
-      setLoading(false);
+      setLoading(false); // Set loading to false after all async operations are done
     });
 
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
+    // Wait until the initial loading is complete before running any redirect logic
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.includes(pathname);
+    const pathIsPublic = publicRoutes.some(route => pathname === route);
 
-    // If user is not logged in and trying to access a protected route, redirect to sign-in
+    // If there's no user and the route is not public, redirect to sign-in
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
+    // If there is a user and a profile, handle role-based redirects
     if (user && profile) {
       const pathIsAuth = authRoutes.includes(pathname);
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
-      // If a logged-in user tries to access auth pages (like sign-in), redirect them to their dashboard
+      // If a logged-in user is on an auth page (like /sign-in), redirect to their dashboard
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -87,20 +87,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Enforce role-based access - redirect if roles don't match the route
+      // Enforce role-based access control
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
       } else if (profile.role === 'user' && (pathIsAdmin || pathIsProvider)) {
+        // Redirect regular users away from admin/provider areas
         router.push('/dashboard');
       }
     }
   }, [user, profile, loading, router, pathname]);
 
-  const isProtectedRoute = !publicRoutes.includes(pathname);
-
-  if (loading && isProtectedRoute) {
+  // While loading, show a skeleton UI for protected routes to prevent flicker
+  if (loading && !publicRoutes.some(route => pathname === route)) {
     return (
         <div className="flex flex-col min-h-screen">
             <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">

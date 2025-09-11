@@ -1,4 +1,3 @@
-
 'use server';
 
 import {NextResponse} from 'next/server';
@@ -12,7 +11,7 @@ import {credential} from 'firebase-admin';
 import 'dotenv/config';
 
 // --- Robust Firebase Admin SDK Initialization ---
-// This function ensures Firebase Admin is initialized only once.
+// This function ensures Firebase Admin is initialized only once and safely.
 function initializeFirebaseAdmin(): App {
   const apps = getApps();
   if (apps.length > 0) {
@@ -22,7 +21,7 @@ function initializeFirebaseAdmin(): App {
   const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!serviceAccountString) {
     console.error(
-      'Firebase Admin SDK Error: FIREBASE_SERVICE_ACCOUNT environment variable is not set.'
+      'Firebase Admin SDK Error: FIREBASE_SERVICE_ACCOUNT environment variable is not set or empty.'
     );
     throw new Error(
       'Server configuration error: Missing Firebase service account credentials.'
@@ -30,14 +29,15 @@ function initializeFirebaseAdmin(): App {
   }
 
   try {
-    // Replace escaped newlines before parsing
+    // The service account key is often stored with escaped newlines.
+    // This line replaces those with actual newlines before parsing.
     const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
     return initializeApp({
       credential: credential.cert(serviceAccount),
     });
-  } catch (e) {
-    console.error('Failed to parse or initialize Firebase Admin SDK:', e);
-    throw new Error('Server configuration error: Could not initialize Firebase Admin.');
+  } catch (e: any) {
+    console.error('Failed to parse or initialize Firebase Admin SDK. Raw Error:', e.message);
+    throw new Error('Server configuration error: Could not initialize Firebase Admin. Please check the format of FIREBASE_SERVICE_ACCOUNT.');
   }
 }
 
@@ -100,33 +100,27 @@ export async function POST(request: Request) {
     const existingProfile = await usersCollection.findOne({email: userData.email});
     if (existingProfile) {
       return NextResponse.json(
-        {message: 'A user with this email already exists.'},
+        {message: 'A user with this email already exists in the database.'},
         {status: 409}
       );
     }
-
+    
     // --- Path for Standard User Signup (from client-side) ---
     if (userData.role === 'user') {
       if (!userData.uid) {
-        return NextResponse.json(
-          {message: 'User UID is required for user role.'},
-          {status: 400}
-        );
+        return NextResponse.json({message: 'User UID is required for standard user signup.'}, {status: 400});
       }
-      // Password is not stored for standard users
+      // Don't save password for standard users.
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {...restOfUserData, createdAt: new Date()};
       await usersCollection.insertOne(dataToInsert);
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // --- Path for Provider Creation (by Admin) ---
-    if (userData.role === 'provider') {
+    // --- Path for Provider or Admin Creation (by Admin) ---
+    if (userData.role === 'provider' || userData.role === 'admin') {
       if (!userData.password) {
-        return NextResponse.json(
-          {message: 'Password is required for provider creation.'},
-          {status: 400}
-        );
+        return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
 
       initializeFirebaseAdmin(); // Initialize Admin SDK only when needed
@@ -136,10 +130,10 @@ export async function POST(request: Request) {
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
-        emailVerified: true, // Providers are created by admin, so we can auto-verify them
+        emailVerified: true, // Users created by an admin can be auto-verified
       });
 
-      // Save provider profile to our database, linking with the new Firebase UID
+      // Save the complete profile to our database, linking with the new Firebase UID
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {
         ...restOfUserData,
@@ -149,34 +143,35 @@ export async function POST(request: Request) {
 
       await usersCollection.insertOne(dataToInsert);
 
-      // Send welcome email with credentials
-      await sendWelcomeEmail(userData.email, userData.name, userData.password);
+      // Send welcome email with credentials if it's a provider
+      if (userData.role === 'provider') {
+        await sendWelcomeEmail(userData.email, userData.name, userData.password);
+      }
 
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // Fallback for invalid role
+    // Fallback for any invalid role not caught by Zod
     return NextResponse.json({message: 'Invalid user role specified.'}, {status: 400});
 
   } catch (error: any) {
     console.error('[API_USERS_POST_ERROR]', error);
 
-    // Zod validation error
     if (error instanceof z.ZodError) {
-      return NextResponse.json({message: 'Invalid user data', errors: error.errors}, {status: 400});
+      return NextResponse.json({message: 'Invalid user data provided.', errors: error.errors}, {status: 400});
     }
     
-    // Firebase-specific error
+    // Check for Firebase-specific error codes
     if (error.code === 'auth/email-already-exists') {
          return NextResponse.json(
-            {message: 'A user with this email already exists in Firebase Authentication.'},
+            {message: 'A user with this email already exists in Firebase Authentication. Cannot create a new one.'},
             {status: 409}
         );
     }
     
-    // Generic internal server error
+    // Catch initialization errors or other generic errors
     return NextResponse.json(
-      {message: 'Internal Server Error', error: error.message},
+      {message: error.message || 'An unexpected internal server error occurred.'},
       {status: 500}
     );
   }
