@@ -160,8 +160,8 @@ export default function SignUpPage() {
         <Image
           src="/cleaning-hero.png"
           alt="A clean and modern living room"
-          width="1200"
-          height="1800"
+          width={1200}
+          height={1800}
           className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />
       </div>
@@ -324,7 +324,7 @@ export default function SignUpPage() {
           </Form>
            <div className="mt-4 text-center text-sm">
             Already have an account?{' '}
-            <Link href="/sign-in" className="underline">
+            <Link href="/sign-in" className="font-bold text-primary underline">
               Sign In
             </Link>
           </div>
