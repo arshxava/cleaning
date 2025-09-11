@@ -2,16 +2,14 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { getApps, initializeApp } from 'firebase-admin/app';
+import { getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 import 'dotenv/config';
 
 // Initialize Firebase Admin SDK
 if (!getApps().length) {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.warn('Missing FIREBASE_SERVICE_ACCOUNT environment variable. API routes requiring admin privileges will fail.');
-  } else {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       initializeApp({
@@ -20,6 +18,8 @@ if (!getApps().length) {
     } catch (e) {
       console.error('Failed to parse or initialize Firebase Admin SDK', e);
     }
+  } else {
+    console.warn('Missing FIREBASE_SERVICE_ACCOUNT environment variable. API routes requiring admin privileges will fail.');
   }
 }
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     // For all roles, first check if a profile already exists in our DB
     const existingProfile = await usersCollection.findOne({ email: userData.email });
-    if (existingProfile) {
+    if (existingProfile && userData.role !== 'provider') { // Allow provider creation to proceed if profile exists
         return NextResponse.json(
             { message: 'A user with this email already exists in the database.' },
             { status: 409 }
@@ -100,12 +100,21 @@ export async function POST(request: Request) {
       if (!userData.password) {
           return NextResponse.json({ message: 'Password is required for provider creation.' }, { status: 400 });
       }
+      if (getApps().length === 0) {
+        throw new Error('Firebase Admin SDK is not initialized.');
+      }
 
       let uid;
+      let isNewFirebaseAuthUser = false;
       try {
         // Check if user exists in Firebase Auth
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
+        // If user exists, maybe update their name
+        if (userRecord.displayName !== userData.name) {
+            await getAuth().updateUser(uid, { displayName: userData.name });
+        }
+
       } catch (error: any) {
         // If user does not exist in Firebase Auth, create them
         if (error.code === 'auth/user-not-found') {
@@ -116,22 +125,33 @@ export async function POST(request: Request) {
             emailVerified: true, // Providers are created by admin, so we can assume verified
           });
           uid = newUserRecord.uid;
+          isNewFirebaseAuthUser = true;
         } else {
           // Re-throw other Firebase errors
           throw error;
         }
       }
       
-      // Now, save the provider profile to MongoDB
+      // Now, save or update the provider profile in MongoDB
       const { password, ...restOfUserData } = userData;
-      const dataToInsert = { ...restOfUserData, uid: uid, createdAt: new Date() };
-      const result = await usersCollection.insertOne(dataToInsert);
-      const createdUser = await usersCollection.findOne({_id: result.insertedId});
+      const dataToUpsert = { ...restOfUserData, uid: uid, createdAt: new Date() };
 
-      // Send welcome email with the temporary password
-      await sendWelcomeEmail(userData.email, userData.name, userData.password);
+      // We use upsert here: if a profile with the UID exists, update it. If not, insert it.
+      // This handles the case where a user signed up but was then made a provider.
+      const result = await usersCollection.updateOne(
+        { uid: uid },
+        { $set: dataToUpsert },
+        { upsert: true }
+      );
+      
+      const savedUser = await usersCollection.findOne({ uid: uid });
 
-      return NextResponse.json(createdUser, { status: 201 });
+      // Send welcome email only if we created a new Firebase user with a temp password
+      if (isNewFirebaseAuthUser) {
+        await sendWelcomeEmail(userData.email, userData.name, userData.password);
+      }
+
+      return NextResponse.json(savedUser, { status: 201 });
     }
     
     return NextResponse.json({ message: 'Invalid user role specified.' }, { status: 400 });
