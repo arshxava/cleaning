@@ -1,293 +1,350 @@
-import Image from 'next/image';
-import Link from 'next/link';
+
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import {
-  ArrowRight,
-  Calendar,
-  CheckCircle,
-  Sparkles,
-  Star,
-  Users,
-  Trash,
+  Building,
+  Mail,
+  Home,
+  Phone,
+  User,
+  MessageSquare,
+  Lock
 } from 'lucide-react';
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
-const services = [
-  {
-    icon: <Sparkles className="h-10 w-10 text-primary" />,
-    title: 'Standard Clean',
-    description:
-      'A thorough cleaning of your living space, including dusting, vacuuming, and surface wiping.',
-  },
-  {
-    icon: <Trash className="h-10 w-10 text-primary" />,
-    title: 'Deep Clean',
-    description:
-      'An intensive clean for a fresh start, covering everything from baseboards to ceiling fans.',
-  },
-  {
-    icon: <HomeIcon className="h-10 w-10 text-primary" />,
-    title: 'Move-In/Out Clean',
-    description:
-      'Prepare your new space or ensure you get your deposit back with our comprehensive move-out cleaning.',
-  },
-];
+const formSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters.'),
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
+  notificationPreference: z.enum(['email', 'sms'], {
+    required_error: 'Please select a notification preference.',
+  }),
+  school: z.string({ required_error: 'Please select your school.' }),
+  roomSize: z.string({ required_error: 'Please select your room size.' }),
+});
 
-const testimonials = [
-  {
-    name: 'Jessica M.',
-    school: 'Residential Client',
-    avatar: 'JM',
-    review:
-      "A+ Cleaning Solutions is a lifesaver! With my hectic schedule, I barely have time for anything else. They're reliable, professional, and my home has never been cleaner.",
-  },
-  {
-    name: 'David L.',
-    school: 'Office Manager',
-    avatar: 'DL',
-    review:
-      'The booking process was so easy, and the results were fantastic. I love coming back to a spotless office after a long day. Highly recommend!',
-  },
-  {
-    name: 'Sarah K.',
-    school: 'Homeowner',
-    avatar: 'SK',
-    review:
-      "I was skeptical at first, but the quality of service is top-notch. It's affordable and the peace of mind is priceless.",
-  },
-];
+type BuildingData = {
+  _id: string;
+  name: string;
+  roomTypes: { name: string }[];
+};
 
-export default function Home() {
+export default function SignUpPage() {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
+
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      try {
+        const response = await fetch('/api/buildings');
+        if (response.ok) {
+          const data = await response.json();
+          setBuildings(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch buildings:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load building data.' });
+      }
+    };
+    fetchBuildings();
+  }, [toast]);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      phone: '',
+    },
+  });
+  
+  const handleBuildingChange = (buildingName: string) => {
+      const building = buildings.find(b => b.name === buildingName);
+      setSelectedBuilding(building || null);
+      form.setValue('school', building?.name || '');
+      form.resetField('roomSize');
+  }
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Update Firebase profile with display name
+      await updateProfile(user, {
+        displayName: values.name,
+      });
+
+      // 3. Send verification email
+      await sendEmailVerification(user);
+
+      // 4. Save user data to MongoDB via our API route
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          ...values,
+          role: 'user',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save user data.');
+      }
+
+      toast({
+        title: 'Account Created!',
+        description: 'A verification email has been sent. Please verify your email to log in.',
+      });
+      router.push('/sign-in');
+
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      let description = "An unexpected error occurred. Please try again.";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        description = "This email is already in use. Please try signing in.";
+        form.setError("email", { type: "manual", message: "This email is already taken." });
+      } else {
+        description = error.message;
+      }
+      
+      toast({
+        variant: 'destructive',
+        title: 'Sign Up Failed',
+        description,
+      });
+    }
+  }
+
   return (
-    <div className="flex flex-col">
-      <section className="relative w-full py-20 md:py-32 lg:py-40 bg-card">
-        <div className="container mx-auto px-4 md:px-6 text-center">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-bold tracking-tight text-foreground">
-              A Clean Space for a Clear Mind
-            </h1>
-            <p className="mt-4 md:mt-6 text-lg md:text-xl text-muted-foreground">
-              A+ Cleaning Solutions offers professional, affordable cleaning services. Focus on what matters, we’ll handle the mess.
-            </p>
-            <div className="mt-8 flex justify-center gap-4">
-              <Button asChild size="lg">
-                <Link href="/book">
-                  Book a Cleaning <ArrowRight className="ml-2" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/#services">Our Services</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src="https://picsum.photos/seed/cs1/1600/900"
-            alt="Clean and tidy living room"
-            data-ai-hint="clean living room"
-            fill
-            className="object-cover opacity-10 dark:opacity-5"
-          />
-        </div>
-      </section>
-
-      <section id="how-it-works" className="w-full py-16 md:py-24">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-2xl mx-auto text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-headline font-bold">
-              How It Works
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Get your space cleaned in three simple steps.
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-3">
-            <Card className="text-center">
-              <CardHeader>
-                <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit">
-                  <Calendar className="h-10 w-10 text-primary" />
-                </div>
-                <CardTitle className="font-headline mt-4">1. Book</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  Select your service, and pick a date and
-                  time that works for you.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="text-center">
-              <CardHeader>
-                <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit">
-                  <Sparkles className="h-10 w-10 text-primary" />
-                </div>
-                <CardTitle className="font-headline mt-4">2. Clean</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  Our trusted cleaning professionals arrive on schedule and
-                  transform your space.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="text-center">
-              <CardHeader>
-                <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit">
-                  <CheckCircle className="h-10 w-10 text-primary" />
-                </div>
-                <CardTitle className="font-headline mt-4">3. Relax</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  Enjoy a spotless room and the extra free time. It’s that easy!
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      <section id="services" className="w-full py-16 md:py-24 bg-card">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-2xl mx-auto text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-headline font-bold">
-              Our Services
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Choose the perfect cleaning plan for your needs.
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <Card key={service.title} className="flex flex-col">
-                <CardHeader className="flex-row items-start gap-4">
-                  {service.icon}
-                  <div>
-                    <CardTitle className="font-headline">
-                      {service.title}
-                    </CardTitle>
-                    <CardDescription>{service.description}</CardDescription>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="testimonials" className="w-full py-16 md:py-24">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-2xl mx-auto text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-headline font-bold">
-              Loved by Our Clients
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              See what people are saying about A+ Cleaning Solutions.
-            </p>
-          </div>
-          <Carousel
-            opts={{ align: 'start' }}
-            className="w-full max-w-4xl mx-auto"
-          >
-            <CarouselContent>
-              {testimonials.map((testimonial, index) => (
-                <CarouselItem
-                  key={index}
-                  className="md:basis-1/2 lg:basis-1/3"
-                >
-                  <div className="p-1 h-full">
-                    <Card className="h-full flex flex-col justify-between">
-                      <CardHeader>
-                        <div className="flex items-center gap-4">
-                          <Avatar>
-                            <AvatarImage
-                              src={`https://i.pravatar.cc/40?u=${testimonial.avatar}`}
-                            />
-                            <AvatarFallback>{testimonial.avatar}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-semibold">{testimonial.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {testimonial.school}
-                            </p>
-                          </div>
+    <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-headline">Create Your Account</CardTitle>
+          <CardDescription>
+            Join A+ Cleaning Solutions and say goodbye to mess.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="John Doe" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="email"
+                          placeholder="you@university.edu"
+                          {...field}
+                          className="pl-10"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                          className="pl-10"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="tel"
+                          placeholder="(123) 456-7890"
+                          {...field}
+                          className="pl-10"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notificationPreference"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Notification Preference</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="email" />
+                          </FormControl>
+                          <FormLabel className="font-normal flex items-center">
+                            <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                            Email
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="sms" />
+                          </FormControl>
+                          <FormLabel className="font-normal flex items-center">
+                            <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
+                            SMS
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="school"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School/Building</FormLabel>
+                    <Select onValueChange={handleBuildingChange} defaultValue={field.value}>
+                      <FormControl>
+                        <div className="relative">
+                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                           <SelectTrigger className="pl-10">
+                            <SelectValue placeholder="Select your school or residence" />
+                          </SelectTrigger>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground">
-                          "{testimonial.review}"
-                        </p>
-                        <div className="flex mt-4 text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="h-5 w-5 fill-current" />
-                          ))}
+                      </FormControl>
+                      <SelectContent>
+                         {buildings.length > 0 ? buildings.map((b) => (
+                            <SelectItem key={b._id} value={b.name}>{b.name}</SelectItem>
+                        )) : <SelectItem value="loading" disabled>Loading buildings...</SelectItem>}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="roomSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Room Size</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedBuilding}>
+                      <FormControl>
+                        <div className="relative">
+                          <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <SelectTrigger className="pl-10">
+                            <SelectValue placeholder={!selectedBuilding ? "Select a building first" : "Select your room size"} />
+                          </SelectTrigger>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
-          </Carousel>
-        </div>
-      </section>
-
-      <section className="w-full py-16 md:py-24 bg-primary/10">
-        <div className="container mx-auto px-4 md:px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-headline font-bold text-foreground">
-            Ready for a Cleaner Space?
-          </h2>
-          <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-            Join hundreds of clients enjoying a cleaner, more productive
-            environment. Schedule your first cleaning today.
+                      </FormControl>
+                      <SelectContent>
+                        {selectedBuilding?.roomTypes.map((room, index) => (
+                           <SelectItem key={index} value={room.name}>{room.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
+          </Form>
+           <p className="mt-6 text-center text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link href="/sign-in" className="font-medium text-primary hover:underline">
+              Sign In
+            </Link>
           </p>
-          <div className="mt-8">
-            <Button size="lg" asChild>
-              <Link href="/sign-up">
-                Sign Up Now <ArrowRight className="ml-2" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
-  );
-}
-
-function HomeIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
   );
 }

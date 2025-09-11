@@ -87,7 +87,7 @@ const Header = () => {
                 <Link href="/sign-in">Sign In</Link>
               </Button>
               <Button asChild>
-                <Link href="/sign-up">Sign Up</Link>
+                <Link href="/">Sign Up</Link>
               </Button>
             </>
           )}
