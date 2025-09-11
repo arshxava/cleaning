@@ -123,10 +123,13 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      // Omit `confirmPassword` before sending to the backend
+      const { confirmPassword, ...dataToSend } = values;
+
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, role: 'provider' }),
+        body: JSON.stringify({ ...dataToSend, role: 'provider' }),
       });
 
       if (!response.ok) {
