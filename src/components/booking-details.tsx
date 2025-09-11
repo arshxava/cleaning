@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Booking, RoomCounts } from '@/lib/types';
+import { Booking, RoomCounts, UserProfile } from '@/lib/types';
 import {
   Calendar,
   Sparkles,
@@ -22,6 +22,8 @@ import {
   Repeat,
   DollarSign,
   Camera,
+  Percent,
+  TrendingUp,
 } from 'lucide-react';
 
 
@@ -32,9 +34,10 @@ const serviceKeys = {
 } as const;
 
 type ServiceName = keyof typeof serviceKeys;
+type ProviderProfile = UserProfile & { role: 'provider' };
 
 
-export function BookingDetails({ booking }: { booking: Booking }) {
+export function BookingDetails({ booking, provider }: { booking: Booking, provider?: ProviderProfile }) {
 
   const getServicesFromRoomCounts = (roomCounts: RoomCounts) => {
     return (Object.keys(serviceKeys) as ServiceName[]).map(serviceName => {
@@ -48,6 +51,8 @@ export function BookingDetails({ booking }: { booking: Booking }) {
   }
 
   const selectedServices = getServicesFromRoomCounts(booking.roomCounts);
+  const commissionPercentage = provider?.commissionPercentage || 0;
+  const providerEarning = booking.price - (booking.price * (commissionPercentage / 100));
 
   return (
     <>
@@ -72,7 +77,17 @@ export function BookingDetails({ booking }: { booking: Booking }) {
             <div className="flex items-center gap-2"><Hash className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Apt Number:</span> {booking.apartmentNumber}</span></div>
             <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Date:</span> {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})}</span></div>
             <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Time:</span> {booking.time}</span></div>
-            <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Price:</span> ${booking.price.toFixed(2)}</span></div>
+        </div>
+        
+        <Separator />
+
+         <div>
+            <h4 className="font-medium text-sm mb-2 flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financials</h4>
+            <div className='space-y-1 text-sm'>
+                <div className="flex justify-between"><span>Total Service Price:</span> <span className='font-medium'>${booking.price.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Commission Rate:</span> <span className='text-muted-foreground'>{commissionPercentage}%</span></div>
+                <div className="flex justify-between font-semibold text-primary"><span>Provider Earnings:</span> <span>${providerEarning.toFixed(2)}</span></div>
+            </div>
         </div>
 
         <Separator />
@@ -134,5 +149,3 @@ export function BookingDetails({ booking }: { booking: Booking }) {
     </>
   );
 }
-
-    

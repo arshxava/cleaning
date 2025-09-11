@@ -28,28 +28,38 @@ import {
 } from '@/components/ui/dialog';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Booking, BookingStatus } from '@/lib/types';
+import { Booking, BookingStatus, UserProfile } from '@/lib/types';
 import { BookingDetails } from '@/components/booking-details';
 
 const statusFilters: (BookingStatus | 'All')[] = ['All', 'Aligned', 'In Process', 'Completed'];
+type ProviderProfile = UserProfile & { role: 'provider' };
+
 
 export default function OngoingServicesPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'All'>('All');
 
   useEffect(() => {
-    const fetchBookings = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/bookings');
-        if (!response.ok) {
-          throw new Error('Failed to fetch bookings');
-        }
-        const data = await response.json();
-        setBookings(data);
+        const [bookingsRes, usersRes] = await Promise.all([
+            fetch('/api/bookings'),
+            fetch('/api/users')
+        ]);
+        
+        if (!bookingsRes.ok) throw new Error('Failed to fetch bookings');
+        const bookingsData = await bookingsRes.json();
+        setBookings(bookingsData);
+
+        if (!usersRes.ok) throw new Error('Failed to fetch users');
+        const usersData: UserProfile[] = await usersRes.json();
+        setProviders(usersData.filter(u => u.role === 'provider') as ProviderProfile[]);
+
       } catch (error) {
         console.error(error);
       } finally {
@@ -57,7 +67,7 @@ export default function OngoingServicesPage() {
       }
     };
 
-    fetchBookings();
+    fetchData();
   }, []);
 
   const handleViewDetails = (booking: Booking) => {
@@ -68,6 +78,10 @@ export default function OngoingServicesPage() {
   const filteredBookings = bookings
     .filter(booking => statusFilter === 'All' || booking.status === statusFilter)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const getProviderForBooking = (booking: Booking) => {
+    return providers.find(p => p.name === booking.provider);
+  }
 
   return (
     <>
@@ -165,7 +179,7 @@ export default function OngoingServicesPage() {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-3xl">
-              {selectedBooking && <BookingDetails booking={selectedBooking} />}
+              {selectedBooking && <BookingDetails booking={selectedBooking} provider={getProviderForBooking(selectedBooking)} />}
           </DialogContent>
       </Dialog>
     </>

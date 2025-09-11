@@ -121,7 +121,13 @@ export default function ProviderDashboardPage() {
                         .filter(b => b.status === status)
                         .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                         .map(booking => (
-                        <BookingCard key={booking._id} booking={booking} userRole="provider" onUpdate={handleUpdate} />
+                        <BookingCard 
+                            key={booking._id} 
+                            booking={booking} 
+                            userRole="provider" 
+                            commissionPercentage={profile.commissionPercentage} 
+                            onUpdate={handleUpdate} 
+                        />
                     ))}
                     {bookings.filter(b => b.status === status).length === 0 && (
                         <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>

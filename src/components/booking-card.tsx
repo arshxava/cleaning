@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Sparkles, User, CheckCircle, Upload, Trash2, Loader2 } from 'lucide-react';
+import { Calendar, Sparkles, User, CheckCircle, Upload, Trash2, Loader2, DollarSign } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { Input } from './ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -22,10 +22,11 @@ import { Booking } from '@/lib/types';
 type BookingCardProps = {
     booking: Booking;
     userRole: 'admin' | 'provider';
+    commissionPercentage?: number;
     onUpdate?: () => void;
 };
 
-export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) => {
+export const BookingCard = ({ booking, userRole, commissionPercentage, onUpdate }: BookingCardProps) => {
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isUploading, startUploading] = useTransition();
@@ -137,6 +138,8 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
     
     const isActionDisabled = isUpdating || isUploading;
 
+    const providerEarning = booking.price - (booking.price * ((commissionPercentage || 0) / 100));
+
   return (
     <Card className="w-full flex flex-col">
       <CardHeader>
@@ -153,6 +156,13 @@ export const BookingCard = ({ booking, userRole, onUpdate }: BookingCardProps) =
         <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /><span>{booking.userName}</span></div>
         <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /><span>{new Date(booking.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span></div>
         
+        {userRole === 'provider' && (
+          <div className="flex items-center gap-2 pt-1 font-medium text-primary">
+            <DollarSign className="h-4 w-4" />
+            <span>Your Earning: ${providerEarning.toFixed(2)}</span>
+          </div>
+        )}
+
         {userRole === 'provider' && booking.status === 'Aligned' && (
              <Button size="sm" variant="outline" className='w-full' onClick={() => beforeImageRef.current?.click()} disabled={isActionDisabled}>
                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
