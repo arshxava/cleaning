@@ -161,7 +161,7 @@ export default function SignUpPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline">Create Your Account</CardTitle>
           <CardDescription>
-            Join Campus Clean and say goodbye to mess.
+            Join A+ Cleaning Solutions and say goodbye to mess.
           </CardDescription>
         </CardHeader>
         <CardContent>

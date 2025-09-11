@@ -108,7 +108,7 @@ export default function SignInPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to your Campus Clean account to continue.
+            Sign in to your A+ Cleaning Solutions account to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Campus Clean',
+  title: 'A+ Cleaning Solutions',
   description: 'Effortless cleaning services for busy students.',
 };
 

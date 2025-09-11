@@ -10,11 +10,11 @@ const Footer = () => {
             <Link href="/" className="flex items-center gap-2 mb-4">
               <Sparkles className="h-6 w-6 text-primary" />
               <span className="text-xl font-bold font-headline">
-                Campus Clean
+                A+ Cleaning Solutions
               </span>
             </Link>
             <p className="text-muted-foreground text-sm">
-              Effortless cleaning services for busy students.
+              Professional cleaning services for your home and office.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-8">
@@ -50,7 +50,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="mt-8 border-t pt-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Campus Clean. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} A+ Cleaning Solutions. All rights reserved.</p>
         </div>
       </div>
     </footer>

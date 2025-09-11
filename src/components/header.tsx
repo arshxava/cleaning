@@ -61,7 +61,7 @@ const Header = () => {
         <Link href="/" className="mr-6 flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-primary" />
           <span className="hidden font-bold font-headline sm:inline-block text-lg">
-            Campus Clean
+            A+ Cleaning Solutions
           </span>
         </Link>
         <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
@@ -104,7 +104,7 @@ const Header = () => {
                 <Link href="/" className="flex items-center gap-2" onClick={closeSheet}>
                   <Sparkles className="h-6 w-6 text-primary" />
                   <span className="font-bold font-headline text-lg">
-                    Campus Clean
+                    A+ Cleaning Solutions
                   </span>
                 </Link>
                 <nav className="flex flex-col gap-4">

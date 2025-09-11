@@ -81,7 +81,7 @@ export default function DashboardPage() {
           Welcome back, {user.displayName || 'User'}!
         </h1>
         <p className="text-muted-foreground">
-          Here’s an overview of your Campus Clean account.
+          Here’s an overview of your A+ Cleaning Solutions account.
         </p>
       </div>
 

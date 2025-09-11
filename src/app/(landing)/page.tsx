@@ -7,6 +7,7 @@ import {
   Sparkles,
   Star,
   Users,
+  Trash,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ const services = [
       'A thorough cleaning of your living space, including dusting, vacuuming, and surface wiping.',
   },
   {
-    icon: <WashingMachineIcon className="h-10 w-10 text-primary" />,
+    icon: <Trash className="h-10 w-10 text-primary" />,
     title: 'Deep Clean',
     description:
       'An intensive clean for a fresh start, covering everything from baseboards to ceiling fans.',
@@ -50,24 +51,24 @@ const services = [
 const testimonials = [
   {
     name: 'Jessica M.',
-    school: 'University of Toronto',
+    school: 'Residential Client',
     avatar: 'JM',
     review:
-      "Campus Clean is a lifesaver! With my hectic study schedule, I barely have time for anything else. They're reliable, professional, and my room has never been cleaner.",
+      "A+ Cleaning Solutions is a lifesaver! With my hectic schedule, I barely have time for anything else. They're reliable, professional, and my home has never been cleaner.",
   },
   {
     name: 'David L.',
-    school: 'McGill University',
+    school: 'Office Manager',
     avatar: 'DL',
     review:
-      'The booking process was so easy, and the results were fantastic. I love coming back to a spotless apartment after a long day of classes. Highly recommend!',
+      'The booking process was so easy, and the results were fantastic. I love coming back to a spotless office after a long day. Highly recommend!',
   },
   {
     name: 'Sarah K.',
-    school: 'UBC',
+    school: 'Homeowner',
     avatar: 'SK',
     review:
-      "I was skeptical at first, but the quality of service is top-notch. It's affordable for a student budget, and the peace of mind is priceless.",
+      "I was skeptical at first, but the quality of service is top-notch. It's affordable and the peace of mind is priceless.",
   },
 ];
 
@@ -81,9 +82,7 @@ export default function Home() {
               A Clean Space for a Clear Mind
             </h1>
             <p className="mt-4 md:mt-6 text-lg md:text-xl text-muted-foreground">
-              Campus Clean offers professional, affordable cleaning services
-              tailored for Canadian students. Focus on your studies, we’ll handle
-              the mess.
+              A+ Cleaning Solutions offers professional, affordable cleaning services. Focus on what matters, we’ll handle the mess.
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Button asChild size="lg">
@@ -99,9 +98,9 @@ export default function Home() {
         </div>
         <div className="absolute inset-0 -z-10">
           <Image
-            src="https://picsum.photos/1600/900"
-            alt="Clean and tidy student room"
-            data-ai-hint="student room"
+            src="https://picsum.photos/seed/cs1/1600/900"
+            alt="Clean and tidy living room"
+            data-ai-hint="clean living room"
             fill
             className="object-cover opacity-10 dark:opacity-5"
           />
@@ -128,7 +127,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p>
-                  Select your building, choose your service, and pick a date and
+                  Select your service, and pick a date and
                   time that works for you.
                 </p>
               </CardContent>
@@ -196,10 +195,10 @@ export default function Home() {
         <div className="container mx-auto px-4 md:px-6">
           <div className="max-w-2xl mx-auto text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-headline font-bold">
-              Loved by Students
+              Loved by Our Clients
             </h2>
             <p className="mt-4 text-muted-foreground">
-              See what your peers are saying about Campus Clean.
+              See what people are saying about A+ Cleaning Solutions.
             </p>
           </div>
           <Carousel
@@ -257,7 +256,7 @@ export default function Home() {
             Ready for a Cleaner Space?
           </h2>
           <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-            Join hundreds of students enjoying a cleaner, more productive living
+            Join hundreds of clients enjoying a cleaner, more productive
             environment. Schedule your first cleaning today.
           </p>
           <div className="mt-8">
@@ -270,29 +269,6 @@ export default function Home() {
         </div>
       </section>
     </div>
-  );
-}
-
-function WashingMachineIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 6h3" />
-      <path d="M17 6h.01" />
-      <rect width="18" height="20" x="3" y="2" rx="2" />
-      <circle cx="12" cy="13" r="5" />
-      <path d="M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5" />
-    </svg>
   );
 }
 
