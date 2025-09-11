@@ -19,21 +19,6 @@ const Footer = () => {
           </div>
           <div className="grid grid-cols-2 gap-8">
             <div>
-              <h3 className="font-semibold mb-3">Quick Links</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/book" className="text-muted-foreground hover:text-primary">
-                    Book Now
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/complaints" className="text-muted-foreground hover:text-primary">
-                    Support
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
               <h3 className="font-semibold mb-3">Legal</h3>
               <ul className="space-y-2 text-sm">
                 <li>
