@@ -11,7 +11,10 @@ import 'dotenv/config';
 if (!getApps().length) {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      // The environment variable might come in as a string with escaped newlines.
+      // We need to parse it correctly.
+      const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT.replace(/\\n/g, '\n');
+      const serviceAccount = JSON.parse(serviceAccountString);
       initializeApp({
         credential: credential.cert(serviceAccount),
       });
