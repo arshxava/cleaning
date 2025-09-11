@@ -72,7 +72,6 @@ export function BookingDetails({ booking }: { booking: Booking }) {
             <div className="flex items-center gap-2"><Hash className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Apt Number:</span> {booking.apartmentNumber}</span></div>
             <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Date:</span> {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})}</span></div>
             <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Time:</span> {booking.time}</span></div>
-            <div className="flex items-center gap-2"><Repeat className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Frequency:</span> {booking.frequency}</span></div>
             <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Price:</span> ${booking.price.toFixed(2)}</span></div>
         </div>
 
@@ -135,3 +134,5 @@ export function BookingDetails({ booking }: { booking: Booking }) {
     </>
   );
 }
+
+    

@@ -52,8 +52,7 @@ import { Input } from '@/components/ui/input';
 const steps = [
   { id: 1, name: 'Service', icon: Sparkles },
   { id: 2, name: 'Schedule', icon: CalendarIcon },
-  { id: 3, name: 'Frequency', icon: Repeat },
-  { id: 4, name: 'Payment', icon: CreditCard },
+  { id: 3, name: 'Payment', icon: CreditCard },
 ];
 
 const timeSlots = [
@@ -114,7 +113,6 @@ export default function BookingPage() {
 
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
-  const [frequency, setFrequency] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -186,7 +184,7 @@ export default function BookingPage() {
 
   const handleBooking = async () => {
     const totalRooms = getTotalRooms();
-    if (!user || !profile || !building || totalRooms === 0 || !date || !time || !frequency) {
+    if (!user || !profile || !building || totalRooms === 0 || !date || !time) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
         return;
     }
@@ -208,7 +206,7 @@ export default function BookingPage() {
                 roomCounts: roomCounts,
                 date: format(date, 'yyyy-MM-dd'),
                 time: time,
-                frequency: frequency,
+                frequency: 'one-time',
                 price: price,
             }),
         });
@@ -231,7 +229,6 @@ export default function BookingPage() {
         setRoomCounts({ standard: 0, deep: 0, 'move-out': 0 });
         setDate(undefined);
         setTime(undefined);
-        setFrequency(undefined);
         setSelectedBuilding(null);
 
     } catch (error) {
@@ -245,6 +242,7 @@ export default function BookingPage() {
   const progressValue = ((currentStep - 1) / (steps.length - 1)) * 100;
   
   const isStep1Complete = building && floor && apartmentType && apartmentNumber && getTotalRooms() > 0;
+  const isStep2Complete = date && time;
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
@@ -259,7 +257,7 @@ export default function BookingPage() {
 
       <div className="mb-8 px-4">
         <Progress value={progressValue} className="w-full" />
-        <ol className="mt-4 grid grid-cols-4 text-sm font-medium text-muted-foreground">
+        <ol className="mt-4 grid grid-cols-3 text-sm font-medium text-muted-foreground">
           {steps.map((step, index) => (
             <li key={step.name} className={cn("flex items-center gap-2", { "text-primary font-semibold": currentStep > index, "justify-center": index > 0 && index < steps.length - 1, "justify-end": index === steps.length - 1 })}>
                <Check className={cn("h-5 w-5 rounded-full", currentStep > index + 1 ? 'bg-primary text-primary-foreground' : 'text-primary' )} />
@@ -277,8 +275,7 @@ export default function BookingPage() {
           <CardDescription>
             {currentStep === 1 && 'Tell us where and what to clean.'}
             {currentStep === 2 && 'Choose a convenient date and time.'}
-            {currentStep === 3 && 'Set a recurring schedule. Minimum 3 cleanings required.'}
-            {currentStep === 4 && 'Review your booking and complete payment.'}
+            {currentStep === 3 && 'Review your booking and complete payment.'}
           </CardDescription>
         </CardHeader>
 
@@ -402,25 +399,6 @@ export default function BookingPage() {
           )}
           
           {currentStep === 3 && (
-             <RadioGroup onValueChange={setFrequency} value={frequency} className="space-y-4">
-                <Label htmlFor="bi-weekly" className="flex items-center p-4 border rounded-md has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer">
-                    <RadioGroupItem value="bi-weekly" id="bi-weekly" className="mr-4" />
-                    <div className="flex-grow">
-                        <p className="font-semibold">Bi-Weekly</p>
-                        <p className="text-sm text-muted-foreground">Every two weeks. Perfect for staying on top of things.</p>
-                    </div>
-                </Label>
-                 <Label htmlFor="monthly" className="flex items-center p-4 border rounded-md has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer">
-                    <RadioGroupItem value="monthly" id="monthly" className="mr-4"/>
-                    <div className="flex-grow">
-                        <p className="font-semibold">Monthly</p>
-                        <p className="text-sm text-muted-foreground">A thorough clean once a month.</p>
-                    </div>
-                </Label>
-             </RadioGroup>
-          )}
-
-          {currentStep === 4 && (
             <div className="space-y-6">
               <h3 className="font-semibold">Review Your Booking</h3>
               <Card>
@@ -465,10 +443,6 @@ export default function BookingPage() {
                     <span className="text-muted-foreground">Time:</span>
                     <span className="font-medium text-right">{time || 'Not selected'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Frequency:</span>
-                    <span className="font-medium text-right">{frequency || 'Not selected'}</span>
-                  </div>
                   <div className="flex justify-between md:col-span-2 text-lg font-bold border-t pt-4 mt-2">
                     <span className="text-primary">Total:</span>
                     <span className="text-primary">${price.toFixed(2)}</span>
@@ -486,7 +460,7 @@ export default function BookingPage() {
             <ChevronLeft /> Previous
           </Button>
           {currentStep < steps.length ? (
-            <Button onClick={nextStep} disabled={ (currentStep === 1 && !isStep1Complete) || (currentStep === 2 && (!date || !time)) || (currentStep === 3 && !frequency) }>
+            <Button onClick={nextStep} disabled={ (currentStep === 1 && !isStep1Complete) || (currentStep === 2 && !isStep2Complete) }>
               Next <ChevronRight />
             </Button>
           ) : (
@@ -499,3 +473,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
