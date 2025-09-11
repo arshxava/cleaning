@@ -13,9 +13,10 @@ import 'dotenv/config';
 
 // --- Robust Firebase Admin SDK Initialization ---
 // This function ensures Firebase Admin is initialized only once.
-function initializeFirebaseAdmin() {
-  if (getApps().length > 0) {
-    return getApps()[0];
+function initializeFirebaseAdmin(): App {
+  const apps = getApps();
+  if (apps.length > 0) {
+    return apps[0];
   }
 
   const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -29,6 +30,7 @@ function initializeFirebaseAdmin() {
   }
 
   try {
+    // Replace escaped newlines before parsing
     const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
     return initializeApp({
       credential: credential.cert(serviceAccount),
@@ -98,12 +100,11 @@ export async function POST(request: Request) {
     const existingProfile = await usersCollection.findOne({email: userData.email});
     if (existingProfile) {
       return NextResponse.json(
-        {message: 'A user with this email already exists in the database.'},
+        {message: 'A user with this email already exists.'},
         {status: 409}
       );
     }
 
-    // --- Path for creating a standard 'user' ---
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json(
@@ -113,12 +114,10 @@ export async function POST(request: Request) {
       }
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {...restOfUserData, createdAt: new Date()};
-      const result = await usersCollection.insertOne(dataToInsert);
-      const createdUser = await usersCollection.findOne({_id: result.insertedId});
-      return NextResponse.json(createdUser, {status: 201});
+      await usersCollection.insertOne(dataToInsert);
+      return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // --- Path for creating a 'provider' ---
     if (userData.role === 'provider') {
       if (!userData.password) {
         return NextResponse.json(
@@ -145,37 +144,30 @@ export async function POST(request: Request) {
         createdAt: new Date(),
       };
 
-      const result = await usersCollection.insertOne(dataToInsert);
-      const savedUser = await usersCollection.findOne({_id: result.insertedId});
+      await usersCollection.insertOne(dataToInsert);
 
       // Send welcome email with credentials
       await sendWelcomeEmail(userData.email, userData.name, userData.password);
 
-      return NextResponse.json(savedUser, {status: 201});
+      return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // Fallback for invalid role
     return NextResponse.json({message: 'Invalid user role specified.'}, {status: 400});
-  } catch (error) {
-    // --- Comprehensive Error Handling ---
-    console.error('Error in POST /api/users:', error);
+  } catch (error: any) {
+    console.error('[API_USERS_POST_ERROR]', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid user data', errors: error.errors}, {status: 400});
     }
     
-    // Check for Firebase-specific error codes
-    if (typeof error === 'object' && error !== null && 'code' in error) {
-        if ((error as { code: string }).code === 'auth/email-already-exists') {
-             return NextResponse.json(
-                {message: 'A user with this email already exists in Firebase Authentication.'},
-                {status: 409}
-            );
-        }
+    if (error.code === 'auth/email-already-exists') {
+         return NextResponse.json(
+            {message: 'A user with this email already exists in Firebase Authentication.'},
+            {status: 409}
+        );
     }
     
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
     return NextResponse.json(
-      {message: 'Internal Server Error', error: errorMessage},
+      {message: 'Internal Server Error', error: error.message},
       {status: 500}
     );
   }

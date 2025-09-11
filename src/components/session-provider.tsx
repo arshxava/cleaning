@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -17,6 +16,7 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 const publicRoutes = ['/sign-in', '/sign-up', '/verify-email', '/'];
+const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
@@ -31,7 +31,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // Always set the Firebase user first
         setUser(firebaseUser);
         try {
           const response = await fetch(`/api/users/${firebaseUser.uid}`);
@@ -39,18 +38,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             const profileData: UserProfile = await response.json();
             setProfile(profileData);
           } else {
-            // This happens if the user exists in Firebase Auth but not in the DB.
-            // It can occur if DB entry fails after signup.
-            // Signing them out forces a clean slate.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setUser(null);
             setProfile(null);
-            // No need to redirect here, the other effect will handle it.
           }
         } catch (e) {
           console.error("Failed to fetch user profile", e);
-          // Sign out if profile fetch fails catastrophically
           await auth.signOut();
           setUser(null);
           setProfile(null);
@@ -65,31 +59,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []); // Run only once on mount
+  }, []);
 
   useEffect(() => {
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route) && route !== '/verify-email' && pathname !== '/sign-in' && pathname !== '/sign-up'));
-    const pathIsAuthRoute = pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/';
+    const pathIsPublic = publicRoutes.includes(pathname);
+    const pathIsAuth = authRoutes.includes(pathname);
 
-    
-    // If user is not logged in and trying to access a protected route, redirect to sign-in
+    // If user is not logged in and trying to access a protected route
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
     if (user && profile) {
-      // If a logged-in user tries to access auth pages, redirect them to their dashboard
-      if (pathIsAuthRoute) {
-        if (profile.role === 'admin') {
-          router.push('/admin/complaints');
-        } else if (profile.role === 'provider') {
-          router.push('/provider/dashboard');
-        } else {
-          router.push('/dashboard');
-        }
+      // If a logged-in user tries to access auth pages, redirect them
+      if (pathIsAuth) {
+        if (profile.role === 'admin') router.push('/admin/complaints');
+        else if (profile.role === 'provider') router.push('/provider/dashboard');
+        else router.push('/dashboard');
         return;
       }
       
@@ -107,10 +96,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [user, profile, loading, router, pathname]);
 
-  // Determine if the current route is a protected route.
-  const isProtectedRoute = !publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route) && route !== '/verify-email' && pathname !== '/sign-in' && pathname !== '/sign-up'));
+  const isProtectedRoute = !publicRoutes.includes(pathname);
 
-  // Show a loading skeleton for protected routes while the session is being verified.
   if (loading && isProtectedRoute) {
     return (
         <div className="flex flex-col min-h-screen">
