@@ -1,5 +1,5 @@
-import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from './logo';
 
 const Footer = () => {
   return (
@@ -8,10 +8,7 @@ const Footer = () => {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold font-headline">
-                A+ Cleaning Solutions
-              </span>
+              <Logo className="h-8" />
             </Link>
             <p className="text-muted-foreground text-sm">
               Professional cleaning services for your home and office.

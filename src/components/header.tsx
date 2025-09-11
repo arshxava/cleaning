@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, Sparkles, LogOut, Shield, Briefcase } from 'lucide-react';
+import { Menu, LogOut, Shield, Briefcase } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 import { useSession } from '@/components/session-provider'; 
 import { useToast } from '@/hooks/use-toast';
+import { Logo } from './logo';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', roles: ['user'] },
@@ -59,10 +60,7 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
         <Link href="/" className="mr-6 flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          <span className="hidden font-bold font-headline sm:inline-block text-lg">
-            A+ Cleaning Solutions
-          </span>
+          <Logo className="h-7" />
         </Link>
         <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
           {visibleLinks.map((link) => (
@@ -102,10 +100,7 @@ const Header = () => {
             <SheetContent side="left">
               <div className="flex flex-col gap-6 p-6">
                 <Link href="/" className="flex items-center gap-2" onClick={closeSheet}>
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  <span className="font-bold font-headline text-lg">
-                    A+ Cleaning Solutions
-                  </span>
+                  <Logo className="h-7" />
                 </Link>
                 <nav className="flex flex-col gap-4">
                   {visibleLinks.map((link) => (
