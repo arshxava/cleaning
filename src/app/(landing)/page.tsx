@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -40,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -156,28 +156,35 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline">Create Your Account</CardTitle>
-          <CardDescription>
-            Join A+ Cleaning Solutions and say goodbye to mess.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="w-full lg:grid lg:min-h-[calc(100vh-128px)] lg:grid-cols-2 xl:min-h-[calc(100vh-128px)]">
+      <div className="hidden bg-muted lg:block">
+        <Image
+          src="https://picsum.photos/seed/3/1200/1200"
+          alt="A clean and modern living room"
+          width="1200"
+          height="1200"
+          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          data-ai-hint="clean modern living room"
+        />
+      </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="mx-auto grid w-[350px] gap-6">
+          <div className="grid gap-2 text-center">
+            <h1 className="text-3xl font-bold font-headline">Get Started</h1>
+            <p className="text-balance text-muted-foreground">
+              Create your account to schedule your first cleaning.
+            </p>
+          </div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="John Doe" {...field} className="pl-10" />
-                      </div>
+                        <Input placeholder="John Doe" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -188,17 +195,13 @@ export default function SignUpPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="email"
                           placeholder="you@university.edu"
                           {...field}
-                          className="pl-10"
                         />
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -211,15 +214,11 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="password"
                           placeholder="••••••••"
                           {...field}
-                          className="pl-10"
                         />
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -232,15 +231,11 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="tel"
                           placeholder="(123) 456-7890"
                           {...field}
-                          className="pl-10"
                         />
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -251,28 +246,26 @@ export default function SignUpPage() {
                 name="notificationPreference"
                 render={({ field }) => (
                   <FormItem className="space-y-3">
-                    <FormLabel>Notification Preference</FormLabel>
+                    <FormLabel>Notify me by</FormLabel>
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        className="flex flex-col space-y-1"
+                        className="flex space-x-4"
                       >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
                             <RadioGroupItem value="email" />
                           </FormControl>
-                          <FormLabel className="font-normal flex items-center">
-                            <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <FormLabel className="font-normal">
                             Email
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
                             <RadioGroupItem value="sms" />
                           </FormControl>
-                          <FormLabel className="font-normal flex items-center">
-                            <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <FormLabel className="font-normal">
                             SMS
                           </FormLabel>
                         </FormItem>
@@ -290,12 +283,9 @@ export default function SignUpPage() {
                     <FormLabel>School/Building</FormLabel>
                     <Select onValueChange={handleBuildingChange} defaultValue={field.value}>
                       <FormControl>
-                        <div className="relative">
-                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                           <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select your school or residence" />
+                           <SelectTrigger>
+                            <SelectValue placeholder="Select your school" />
                           </SelectTrigger>
-                        </div>
                       </FormControl>
                       <SelectContent>
                          {buildings.length > 0 ? buildings.map((b) => (
@@ -315,12 +305,9 @@ export default function SignUpPage() {
                     <FormLabel>Room Size</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedBuilding}>
                       <FormControl>
-                        <div className="relative">
-                          <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <SelectTrigger className="pl-10">
-                            <SelectValue placeholder={!selectedBuilding ? "Select a building first" : "Select your room size"} />
+                          <SelectTrigger>
+                            <SelectValue placeholder={!selectedBuilding ? "Select building first" : "Select your room size"} />
                           </SelectTrigger>
-                        </div>
                       </FormControl>
                       <SelectContent>
                         {selectedBuilding?.roomTypes.map((room, index) => (
@@ -337,14 +324,16 @@ export default function SignUpPage() {
               </Button>
             </form>
           </Form>
-           <p className="mt-6 text-center text-sm text-muted-foreground">
+           <div className="mt-4 text-center text-sm">
             Already have an account?{' '}
-            <Link href="/sign-in" className="font-medium text-primary hover:underline">
+            <Link href="/sign-in" className="underline">
               Sign In
             </Link>
-          </p>
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
+    
