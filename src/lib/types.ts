@@ -1,6 +1,8 @@
 
 
 
+
+
 export type UserProfile = {
   uid: string;
   name: string;
@@ -12,6 +14,7 @@ export type UserProfile = {
   role: 'user' | 'admin' | 'provider';
   createdAt: any; // Changed to any to accommodate server-side Date and client-side string
   assignedBuildings?: string[]; // Array of building IDs
+  commissionPercentage?: number;
 };
 
 export type BookingStatus = 'Aligned' | 'In Process' | 'Completed';
@@ -41,6 +44,7 @@ export type Booking = {
   beforeImages: string[];
   afterImages: string[];
   createdAt: any;
+  providerPaid?: boolean;
 };
 
 export type Complaint = {

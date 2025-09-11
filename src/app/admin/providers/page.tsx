@@ -14,9 +14,9 @@ import {
   Calendar as CalendarIcon,
   Check,
   ChevronsUpDown,
+  Lock,
+  Percent,
 } from 'lucide-react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
 
@@ -53,13 +53,18 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+  confirmPassword: z.string(),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
+  commissionPercentage: z.coerce.number().min(0).max(100, 'Commission must be between 0 and 100.'),
   assignedBuildings: z.array(z.string()).optional(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 type ProviderProfile = UserProfile & { role: 'provider' };
@@ -76,7 +81,10 @@ export default function ProvidersPage() {
     defaultValues: {
       name: '',
       email: '',
+      password: '',
+      confirmPassword: '',
       phone: '',
+      commissionPercentage: 10,
       assignedBuildings: [],
     },
   });
@@ -126,11 +134,9 @@ export default function ProvidersPage() {
         throw new Error(errorData.message || 'Failed to create provider.');
       }
       
-      await sendPasswordResetEmail(auth, values.email);
-
       toast({
         title: 'Provider Account Created',
-        description: `An account setup email has been sent to ${values.name}.`,
+        description: `An account has been created for ${values.name}.`,
       });
       form.reset();
       fetchInitialData(); // Refresh the list
@@ -163,13 +169,6 @@ export default function ProvidersPage() {
               <CardTitle>Create Provider Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <Alert className="mb-6">
-                <HardHat className="h-4 w-4" />
-                <AlertTitle>How It Works</AlertTitle>
-                <AlertDescription>
-                  Creating an account will automatically send an email to the provider with a link to set their own password. You do not need to set a temporary one.
-                </AlertDescription>
-              </Alert>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
@@ -204,6 +203,38 @@ export default function ProvidersPage() {
                       </FormItem>
                     )}
                   />
+                   <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="phone"
@@ -214,6 +245,22 @@ export default function ProvidersPage() {
                            <div className="relative">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input type="tel" placeholder="(555) 123-4567" {...field} className="pl-10" />
+                           </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="commissionPercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Commission Percentage</FormLabel>
+                        <FormControl>
+                           <div className="relative">
+                            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="number" placeholder="e.g. 10" {...field} className="pl-10" />
                            </div>
                         </FormControl>
                         <FormMessage />
@@ -284,7 +331,7 @@ export default function ProvidersPage() {
                     )}
                   />
                   <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account & Send Invite'}
+                    {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
                   </Button>
                 </form>
               </Form>

@@ -172,7 +172,7 @@ export default function SignInPage() {
                 </div>
             </div>
         </div>
-        <div className="hidden bg-muted lg:block">
+        <div className="bg-muted lg:block">
             <Image
                 src="/cleaning-signin.png"
                 alt="A clean and tidy room"

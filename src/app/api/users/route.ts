@@ -1,9 +1,8 @@
 
-
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { getApps, initializeApp, App } from 'firebase-admin/app';
+import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 import 'dotenv/config';
@@ -11,7 +10,6 @@ import 'dotenv/config';
 // Initialize Firebase Admin SDK
 if (!getApps().length) {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // This will not throw during build time, but will be an issue at runtime if not set.
     console.warn('Missing FIREBASE_SERVICE_ACCOUNT environment variable. API routes requiring admin privileges will fail.');
   } else {
     try {
@@ -29,16 +27,43 @@ const userSchema = z.object({
   uid: z.string().optional(),
   name: z.string(),
   email: z.string().email(),
+  password: z.string().optional(),
   phone: z.string(),
   notificationPreference: z.enum(['email', 'sms']).optional(),
   school: z.string().optional(),
   roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   assignedBuildings: z.array(z.string()).optional(),
+  commissionPercentage: z.number().optional(),
 });
 
-export const updateUserSchema = userSchema.partial().omit({ email: true, role: true });
+export const updateUserSchema = userSchema.partial().omit({ email: true, role: true, password: true });
 
+async function sendWelcomeEmail(to: string, name: string, password?: string) {
+  const subject = 'Welcome to A+ Cleaning Solutions!';
+  const body = `
+    <h1>Hi ${name},</h1>
+    <p>An account has been created for you on the A+ Cleaning Solutions platform.</p>
+    <p>Your username is your email address: ${to}</p>
+    ${password ? `<p>Your temporary password is: <strong>${password}</strong></p><p>Please log in and change it as soon as possible.</p>` : ''}
+    <p>You can log in here: <a href="${process.env.NEXT_PUBLIC_BASE_URL}/sign-in">Login Page</a></p>
+    <p>Thanks,</p>
+    <p>The A+ Cleaning Solutions Team</p>
+  `;
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, html: body }),
+    });
+    if (!response.ok) {
+      console.error("Failed to send welcome email:", await response.text());
+    }
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -49,9 +74,6 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
-    // --- Path for Regular User Sign-up ---
-    // The user is already created in Firebase Auth on the client-side.
-    // We just need to create their profile in our database.
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for user role.' }, { status: 400 });
@@ -59,23 +81,23 @@ export async function POST(request: Request) {
       
       const existingUser = await usersCollection.findOne({ uid: userData.uid });
       if (existingUser) {
-        // This case should ideally not happen in a normal sign-up flow, but it's good practice to handle it.
         return NextResponse.json({ message: 'User profile already exists.', uid: userData.uid }, { status: 200 });
       }
 
-      const dataToInsert = { ...userData, createdAt: new Date() };
+      const { password, ...restOfUserData } = userData;
+      const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       const result = await usersCollection.insertOne(dataToInsert);
       
-      // Ensure we return the user object, not the full result
       const createdUser = await usersCollection.findOne({_id: result.insertedId});
-
       return NextResponse.json(createdUser, { status: 201 });
     }
 
-    // --- Path for Admin Creating a Provider ---
-    // The entire user creation (Auth and DB) is handled on the server.
     if (userData.role === 'provider') {
-       const existingProfile = await usersCollection.findOne({ email: userData.email });
+      if (!userData.password) {
+          return NextResponse.json({ message: 'Password is required for provider creation.' }, { status: 400 });
+      }
+
+      const existingProfile = await usersCollection.findOne({ email: userData.email });
       if (existingProfile) {
         return NextResponse.json(
           { message: 'A user with this email already exists in the database.' },
@@ -85,32 +107,33 @@ export async function POST(request: Request) {
 
       let uid;
       try {
-        // Check if user exists in Firebase Auth
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
       } catch (error: any) {
-        // If user not found, create one in Firebase Auth
         if (error.code === 'auth/user-not-found') {
           const newUserRecord = await getAuth().createUser({
             email: userData.email,
+            password: userData.password,
             displayName: userData.name,
-            emailVerified: true, // Providers are trusted, so we can auto-verify email.
+            emailVerified: true,
           });
           uid = newUserRecord.uid;
         } else {
-          // Re-throw other auth errors
           throw error;
         }
       }
       
-      const dataToInsert = { ...userData, uid: uid, createdAt: new Date() };
+      const { password, ...restOfUserData } = userData;
+      const dataToInsert = { ...restOfUserData, uid: uid, createdAt: new Date() };
       const result = await usersCollection.insertOne(dataToInsert);
       const createdUser = await usersCollection.findOne({_id: result.insertedId});
+
+      // Send welcome email after successful creation
+      await sendWelcomeEmail(userData.email, userData.name, userData.password);
 
       return NextResponse.json(createdUser, { status: 201 });
     }
     
-    // Fallback for any other roles or invalid requests
     return NextResponse.json({ message: 'Invalid user role specified.' }, { status: 400 });
 
   } catch (error) {
@@ -136,5 +159,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
-
-    

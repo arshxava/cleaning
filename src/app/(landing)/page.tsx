@@ -156,7 +156,7 @@ export default function SignUpPage() {
 
   return (
     <div className="w-full lg:grid lg:min-h-[calc(100vh-64px)] lg:grid-cols-2 xl:min-h-[calc(100vh-64px)]">
-      <div className="hidden bg-muted lg:block">
+      <div className="bg-muted lg:block">
         <Image
           src="/cleaning-hero.png"
           alt="A clean and modern living room"
