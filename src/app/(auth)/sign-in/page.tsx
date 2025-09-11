@@ -8,6 +8,8 @@ import { Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import Image from 'next/image';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,13 +21,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase';
 import type { UserProfile } from '@/lib/types';
@@ -103,80 +98,90 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="container mx-auto py-12 px-4 md:px-6 max-w-lg">
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to your A+ Cleaning Solutions account to continue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-           {mode === 'resetPassword' && (
-            <Alert className="mb-6 bg-green-50 border-green-200">
-              <AlertTitle className="text-green-800">Password Reset Successful</AlertTitle>
-              <AlertDescription className="text-green-700">
-                You can now sign in with your new password.
-              </AlertDescription>
-            </Alert>
-          )}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="email"
-                          placeholder="you@university.edu"
-                          {...field}
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+     <div className="w-full lg:grid lg:min-h-[calc(100vh-64px)] lg:grid-cols-2 xl:min-h-[calc(100vh-64px)]">
+        <div className="flex items-center justify-center py-12">
+            <div className="mx-auto grid w-[350px] gap-6">
+                <div className="grid gap-2 text-center">
+                    <h1 className="text-3xl font-bold font-headline">Welcome Back</h1>
+                    <p className="text-balance text-muted-foreground">
+                        Sign in to your A+ Cleaning Solutions account to continue.
+                    </p>
+                </div>
+                 {mode === 'resetPassword' && (
+                    <Alert className="bg-green-50 border-green-200">
+                    <AlertTitle className="text-green-800">Password Reset Successful</AlertTitle>
+                    <AlertDescription className="text-green-700">
+                        You can now sign in with your new password.
+                    </AlertDescription>
+                    </Alert>
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                          className="pl-10"
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email Address</FormLabel>
+                                <FormControl>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    type="email"
+                                    placeholder="you@university.edu"
+                                    {...field}
+                                    className="pl-10"
+                                    />
+                                </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
                         />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Signing In...' : 'Sign In'}
-              </Button>
-            </form>
-          </Form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link href="/" className="font-medium text-primary hover:underline">
-              Sign Up
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+                        <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    {...field}
+                                    className="pl-10"
+                                    />
+                                </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <Button type="submit" className="w-full" size="lg" disabled={form.formState.isSubmitting}>
+                            {form.formState.isSubmitting ? 'Signing In...' : 'Sign In'}
+                        </Button>
+                    </form>
+                </Form>
+                <div className="mt-4 text-center text-sm">
+                    Don't have an account?{' '}
+                    <Link href="/" className="underline">
+                    Sign Up
+                    </Link>
+                </div>
+            </div>
+        </div>
+        <div className="hidden bg-muted lg:block">
+            <Image
+                src="https://picsum.photos/seed/2/1200/1800"
+                alt="A clean and tidy room"
+                width="1200"
+                height="1800"
+                className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+                data-ai-hint="clean tidy room"
+            />
+        </div>
     </div>
   );
 }
