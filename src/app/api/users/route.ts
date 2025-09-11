@@ -7,12 +7,13 @@ import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 import 'dotenv/config';
 
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
+// Function to initialize Firebase Admin SDK
+function initializeFirebaseAdmin() {
+  if (getApps().length > 0) {
+    return;
+  }
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
-      // The environment variable might come in as a string with escaped newlines.
-      // We need to parse it correctly.
       const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT.replace(/\\n/g, '\n');
       const serviceAccount = JSON.parse(serviceAccountString);
       initializeApp({
@@ -20,9 +21,11 @@ if (!getApps().length) {
       });
     } catch (e) {
       console.error('Failed to parse or initialize Firebase Admin SDK', e);
+      throw new Error('Firebase Admin SDK initialization failed.');
     }
   } else {
     console.warn('Missing FIREBASE_SERVICE_ACCOUNT environment variable. API routes requiring admin privileges will fail.');
+    throw new Error('Missing Firebase service account credentials.');
   }
 }
 
@@ -79,7 +82,7 @@ export async function POST(request: Request) {
 
     // For all roles, first check if a profile already exists in our DB
     const existingProfile = await usersCollection.findOne({ email: userData.email });
-    if (existingProfile && userData.role !== 'provider') { // Allow provider creation to proceed if profile exists
+    if (existingProfile) {
         return NextResponse.json(
             { message: 'A user with this email already exists in the database.' },
             { status: 409 }
@@ -103,20 +106,16 @@ export async function POST(request: Request) {
       if (!userData.password) {
           return NextResponse.json({ message: 'Password is required for provider creation.' }, { status: 400 });
       }
-      if (getApps().length === 0) {
-        throw new Error('Firebase Admin SDK is not initialized.');
-      }
-
+      
+      initializeFirebaseAdmin(); // Ensure Admin SDK is ready
+      
       let uid;
       let isNewFirebaseAuthUser = false;
       try {
         // Check if user exists in Firebase Auth
         const userRecord = await getAuth().getUserByEmail(userData.email);
         uid = userRecord.uid;
-        // If user exists, maybe update their name
-        if (userRecord.displayName !== userData.name) {
-            await getAuth().updateUser(uid, { displayName: userData.name });
-        }
+        await getAuth().updateUser(uid, { displayName: userData.name });
 
       } catch (error: any) {
         // If user does not exist in Firebase Auth, create them
@@ -125,7 +124,7 @@ export async function POST(request: Request) {
             email: userData.email,
             password: userData.password,
             displayName: userData.name,
-            emailVerified: true, // Providers are created by admin, so we can assume verified
+            emailVerified: true, 
           });
           uid = newUserRecord.uid;
           isNewFirebaseAuthUser = true;
@@ -135,12 +134,9 @@ export async function POST(request: Request) {
         }
       }
       
-      // Now, save or update the provider profile in MongoDB
       const { password, ...restOfUserData } = userData;
       const dataToUpsert = { ...restOfUserData, uid: uid, createdAt: new Date() };
 
-      // We use upsert here: if a profile with the UID exists, update it. If not, insert it.
-      // This handles the case where a user signed up but was then made a provider.
       const result = await usersCollection.updateOne(
         { uid: uid },
         { $set: dataToUpsert },
@@ -149,7 +145,6 @@ export async function POST(request: Request) {
       
       const savedUser = await usersCollection.findOne({ uid: uid });
 
-      // Send welcome email only if we created a new Firebase user with a temp password
       if (isNewFirebaseAuthUser) {
         await sendWelcomeEmail(userData.email, userData.name, userData.password);
       }
