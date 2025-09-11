@@ -91,8 +91,8 @@ export default function SignUpPage() {
     },
   });
   
-  const handleBuildingChange = (buildingId: string) => {
-      const building = buildings.find(b => b._id === buildingId);
+  const handleBuildingChange = (buildingName: string) => {
+      const building = buildings.find(b => b.name === buildingName);
       setSelectedBuilding(building || null);
       form.setValue('school', building?.name || '');
       form.resetField('roomSize');
@@ -299,7 +299,7 @@ export default function SignUpPage() {
                       </FormControl>
                       <SelectContent>
                          {buildings.length > 0 ? buildings.map((b) => (
-                            <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
+                            <SelectItem key={b._id} value={b.name}>{b.name}</SelectItem>
                         )) : <SelectItem value="loading" disabled>Loading buildings...</SelectItem>}
                       </SelectContent>
                     </Select>
@@ -313,7 +313,7 @@ export default function SignUpPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Room Size</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedBuilding}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedBuilding}>
                       <FormControl>
                         <div className="relative">
                           <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

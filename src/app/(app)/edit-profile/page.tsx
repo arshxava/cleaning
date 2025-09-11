@@ -35,7 +35,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from '@/components/session-provider';
 
 const formSchema = z.object({
@@ -81,8 +81,8 @@ export default function EditProfilePage() {
     fetchBuildings();
   }, [toast]);
   
-  useEffect(() => {
-    if (profile) {
+  const resetFormWithProfile = useCallback(() => {
+    if (profile && buildings.length > 0) {
       form.reset({
         name: profile.name,
         phone: profile.phone,
@@ -96,13 +96,19 @@ export default function EditProfilePage() {
         setSelectedBuilding(currentBuilding);
       }
     }
-  }, [profile, form, buildings]);
-  
+  }, [profile, buildings, form]);
+
   useEffect(() => {
-      const buildingName = form.watch('school');
+    resetFormWithProfile();
+  }, [profile, buildings, resetFormWithProfile]);
+
+  
+  const handleBuildingChange = (buildingName: string) => {
       const buildingData = buildings.find(b => b.name === buildingName);
       setSelectedBuilding(buildingData || null);
-  }, [form.watch('school'), buildings])
+      form.setValue('school', buildingName);
+      form.resetField('roomSize');
+  }
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -249,12 +255,7 @@ export default function EditProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>School/Building</FormLabel>
-                    <Select onValueChange={(value) => {
-                        field.onChange(value);
-                        const building = buildings.find(b => b.name === value);
-                        setSelectedBuilding(building || null);
-                        form.resetField('roomSize');
-                    }} value={field.value}>
+                    <Select onValueChange={handleBuildingChange} value={field.value}>
                       <FormControl>
                         <div className="relative">
                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -314,5 +315,3 @@ export default function EditProfilePage() {
     </div>
   );
 }
-
-    
