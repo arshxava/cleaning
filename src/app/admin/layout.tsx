@@ -27,7 +27,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import Header from '@/components/header';
-import Footer from '@/components/footer';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/session-provider';
 import { useEffect, useState } from 'react';
@@ -132,7 +131,6 @@ export default function AdminLayout({
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-gray-50 dark:bg-gray-900">
           {children}
         </main>
-        <Footer />
       </div>
     </div>
   );
