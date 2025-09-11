@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Booking } from '@/lib/types'; 
 import { Complaint } from '@/lib/types'; 
+import Image from 'next/image';
 
 export default function DashboardPage() {
   const { user, profile } = useSession();
@@ -91,7 +92,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={user.photoURL || `https://i.pravatar.cc/80?u=${user.uid}`} />
+                <AvatarImage src={'/images/avatar-placeholder.png'} />
                 <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
               </Avatar>
               <div>
@@ -141,8 +142,16 @@ export default function DashboardPage() {
                       </div>
                   ) : (
                      <div className="grid md:grid-cols-2 gap-6">
-                        {bookings.map((booking) => (
+                        {bookings.map((booking, index) => (
                            <Card key={booking._id} className="flex flex-col">
+                            <div className="relative h-40 w-full">
+                                <Image 
+                                    src={index % 2 === 0 ? "/cleaning-dashboard-1.png" : "/cleaning-dashboard-2.png"}
+                                    alt={`Image for ${booking.service}`}
+                                    fill
+                                    className="object-cover rounded-t-lg"
+                                />
+                            </div>
                              <CardHeader>
                                <div className="flex justify-between items-start">
                                  <CardTitle className="text-lg font-headline flex items-center gap-2">
@@ -224,5 +233,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

@@ -174,12 +174,11 @@ export default function SignInPage() {
         </div>
         <div className="hidden bg-muted lg:block">
             <Image
-                src="https://picsum.photos/seed/2/1200/1800"
+                src="/cleaning-signin.png"
                 alt="A clean and tidy room"
                 width="1200"
                 height="1800"
                 className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-                data-ai-hint="clean tidy room"
             />
         </div>
     </div>

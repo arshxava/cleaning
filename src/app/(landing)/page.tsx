@@ -158,12 +158,11 @@ export default function SignUpPage() {
     <div className="w-full lg:grid lg:min-h-[calc(100vh-64px)] lg:grid-cols-2 xl:min-h-[calc(100vh-64px)]">
       <div className="hidden bg-muted lg:block">
         <Image
-          src="https://picsum.photos/seed/3/1200/1800"
+          src="/cleaning-hero.png"
           alt="A clean and modern living room"
           width="1200"
           height="1800"
           className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-          data-ai-hint="clean modern living room"
         />
       </div>
       <div className="flex items-center justify-center py-12">
