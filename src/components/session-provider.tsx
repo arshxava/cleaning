@@ -46,9 +46,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             await auth.signOut();
             setUser(null);
             setProfile(null);
+            // No need to redirect here, the other effect will handle it.
           }
         } catch (e) {
           console.error("Failed to fetch user profile", e);
+          // Sign out if profile fetch fails catastrophically
+          await auth.signOut();
+          setUser(null);
           setProfile(null);
         } finally {
           setLoading(false);
@@ -67,8 +71,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route || (route !== '/' && pathname.startsWith(route) && route !== '/verify-email' && pathname !== '/sign-in' && pathname !== '/sign-up'));
+    const pathIsAuthRoute = pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/';
 
-    const pathIsAuthRoute = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
     
     // If user is not logged in and trying to access a protected route, redirect to sign-in
     if (!user && !pathIsPublic) {

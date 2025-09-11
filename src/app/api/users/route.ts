@@ -1,3 +1,4 @@
+
 'use server';
 
 import {NextResponse} from 'next/server';
@@ -14,7 +15,7 @@ import 'dotenv/config';
 // This function ensures Firebase Admin is initialized only once.
 function initializeFirebaseAdmin() {
   if (getApps().length > 0) {
-    return; // Already initialized
+    return getApps()[0];
   }
 
   const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -29,7 +30,7 @@ function initializeFirebaseAdmin() {
 
   try {
     const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
-    initializeApp({
+    return initializeApp({
       credential: credential.cert(serviceAccount),
     });
   } catch (e) {
@@ -161,8 +162,6 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid user data', errors: error.errors}, {status: 400});
     }
-
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
     
     // Check for Firebase-specific error codes
     if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -174,6 +173,7 @@ export async function POST(request: Request) {
         }
     }
     
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
     return NextResponse.json(
       {message: 'Internal Server Error', error: errorMessage},
       {status: 500}
