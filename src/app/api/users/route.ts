@@ -105,6 +105,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // --- Path for Standard User Signup (from client-side) ---
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json(
@@ -112,12 +113,14 @@ export async function POST(request: Request) {
           {status: 400}
         );
       }
+      // Password is not stored for standard users
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {...restOfUserData, createdAt: new Date()};
       await usersCollection.insertOne(dataToInsert);
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
+    // --- Path for Provider Creation (by Admin) ---
     if (userData.role === 'provider') {
       if (!userData.password) {
         return NextResponse.json(
@@ -126,17 +129,17 @@ export async function POST(request: Request) {
         );
       }
 
-      initializeFirebaseAdmin(); // Initialize Admin SDK
+      initializeFirebaseAdmin(); // Initialize Admin SDK only when needed
 
       // Create user in Firebase Authentication
       const userRecord = await getAuth().createUser({
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
-        emailVerified: true, // Providers are created by admin, so we can verify them
+        emailVerified: true, // Providers are created by admin, so we can auto-verify them
       });
 
-      // Save provider profile to the database
+      // Save provider profile to our database, linking with the new Firebase UID
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {
         ...restOfUserData,
@@ -152,13 +155,18 @@ export async function POST(request: Request) {
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
+    // Fallback for invalid role
     return NextResponse.json({message: 'Invalid user role specified.'}, {status: 400});
+
   } catch (error: any) {
     console.error('[API_USERS_POST_ERROR]', error);
+
+    // Zod validation error
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid user data', errors: error.errors}, {status: 400});
     }
     
+    // Firebase-specific error
     if (error.code === 'auth/email-already-exists') {
          return NextResponse.json(
             {message: 'A user with this email already exists in Firebase Authentication.'},
@@ -166,6 +174,7 @@ export async function POST(request: Request) {
         );
     }
     
+    // Generic internal server error
     return NextResponse.json(
       {message: 'Internal Server Error', error: error.message},
       {status: 500}

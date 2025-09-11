@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -38,6 +39,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             const profileData: UserProfile = await response.json();
             setProfile(profileData);
           } else {
+            // This case is critical. A user is authenticated with Firebase, but no profile exists in our DB.
+            // It can occur if DB entry fails after signup.
+            // Signing them out forces a clean slate.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setUser(null);
@@ -74,7 +78,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     if (user && profile) {
-      // If a logged-in user tries to access auth pages, redirect them
+      // If a logged-in user tries to access auth pages, redirect them to their respective dashboard
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -85,12 +89,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
-      // Enforce role-based access
+      // Enforce role-based access - redirect if roles don't match the route
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
       } else if (profile.role === 'user' && (pathIsAdmin || pathIsProvider)) {
+        // Redirect regular users away from admin/provider routes
         router.push('/dashboard');
       }
     }
