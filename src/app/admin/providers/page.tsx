@@ -72,6 +72,7 @@ type Building = { _id: string; name: string; location: string };
 export default function ProvidersPage() {
   const { toast } = useToast();
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -89,12 +90,20 @@ export default function ProvidersPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const providersRes = await fetch('/api/users');
+      const [providersRes, buildingsRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/buildings'),
+      ]);
 
       if (!providersRes.ok) throw new Error('Failed to fetch providers');
       const allUsers: UserProfile[] = await providersRes.json();
       const providerUsers = allUsers.filter(user => user.role === 'provider') as ProviderProfile[];
       setProviders(providerUsers);
+
+      if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
+      const buildingsData = await buildingsRes.json();
+      console.log("Buildings fetched:", buildingsData);
+      setBuildings(buildingsData);
 
     } catch (error) {
       toast({
@@ -112,9 +121,12 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log('Form values on submit:', values);
     try {
       // Omit `confirmPassword` before sending to the backend
       const { confirmPassword, ...dataToSend } = values;
+
+      console.log('Data being sent to API:', dataToSend);
 
       const response = await fetch('/api/users', {
         method: 'POST',
