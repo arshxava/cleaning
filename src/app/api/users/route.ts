@@ -4,7 +4,6 @@
 import {NextResponse} from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import {z} from 'zod';
-// Do not import firebase-admin here to prevent module-level crashes
 
 // --- Zod Schemas for Validation ---
 const userSchema = z.object({
@@ -17,7 +16,6 @@ const userSchema = z.object({
   school: z.string().optional(),
   roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']).default('user'),
-  assignedBuildings: z.array(z.string()).optional(),
   commissionPercentage: z.coerce.number().optional(),
 });
 
@@ -53,31 +51,6 @@ async function sendWelcomeEmail(to: string, name: string, password?: string) {
 // --- Main API Route Handlers ---
 export async function POST(request: Request) {
   try {
-    // --- Robust Firebase Admin SDK Initialization ---
-    const initializeFirebaseAdmin = () => {
-        const { getApps, initializeApp, credential } = require('firebase-admin/app');
-        const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-        
-        if (getApps().length > 0) {
-            return getApps()[0];
-        }
-
-        if (!serviceAccountString) {
-            throw new Error('Server configuration error: Missing Firebase service account credentials.');
-        }
-
-        try {
-            const serviceAccount = JSON.parse(serviceAccountString);
-            return initializeApp({
-                credential: credential.cert(serviceAccount),
-            });
-        } catch (e: any) {
-            console.error('Failed to parse or initialize Firebase Admin SDK:', e.message);
-            throw new Error('Server configuration error: Could not initialize Firebase Admin.');
-        }
-    };
-
-
     const json = await request.json();
     const userData = userSchema.parse(json);
 
@@ -105,9 +78,22 @@ export async function POST(request: Request) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
       
+      // Dynamically import and initialize Firebase Admin SDK
+      const { getApps, initializeApp, cert } = require('firebase-admin/app');
       const { getAuth } = require('firebase-admin/auth');
-      initializeFirebaseAdmin();
-      const auth = getAuth();
+
+      const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+      if (!serviceAccountString) {
+          throw new Error('Server configuration error: Missing Firebase service account credentials.');
+      }
+      
+      const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+
+      const adminApp = getApps().length > 0 
+          ? getApps()[0] 
+          : initializeApp({ credential: cert(serviceAccount) });
+
+      const auth = getAuth(adminApp);
       
       const userRecord = await auth.createUser({
         email: userData.email,

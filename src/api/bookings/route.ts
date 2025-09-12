@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -40,15 +41,7 @@ export async function POST(request: Request) {
 
     // Find the building to determine the assigned provider.
     const buildingDoc = await db.collection('buildings').findOne({ name: data.building });
-    let providerName = 'Unassigned';
-
-    if (buildingDoc) {
-        // Find a provider who is assigned to this building's ID
-        const provider = await db.collection('users').findOne({ role: 'provider', assignedBuildings: buildingDoc._id.toString() });
-        if (provider) {
-            providerName = provider.name;
-        }
-    }
+    let providerName = buildingDoc?.assignedProvider || 'Unassigned';
 
     const bookingData = {
       ...data,
@@ -119,7 +112,3 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
-
-    
-
-    

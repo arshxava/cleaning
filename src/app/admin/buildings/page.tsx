@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { Building as BuildingIcon, Home, Hash, MapPin, DollarSign, Sparkles, Trash, PlusCircle, Layers } from 'lucide-react';
+import { Building as BuildingIcon, Home, HardHat, DollarSign, Sparkles, Trash, PlusCircle, Layers, MapPin } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -28,6 +29,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import type { UserProfile } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const availableServices = [
   { id: 'standard', label: 'Standard Clean' },
@@ -60,12 +64,89 @@ type Building = {
   location: string;
   floors: number;
   roomTypes: z.infer<typeof roomTypeSchema>[];
+  assignedProvider?: string; // Provider's name
   createdAt: string;
+}
+
+type ProviderProfile = UserProfile & { role: 'provider' };
+
+
+const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { building: Building, providers: ProviderProfile[], onAssignmentChange: () => void }) => {
+    const { toast } = useToast();
+    const [selectedProvider, setSelectedProvider] = useState(building.assignedProvider || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSaveAssignment = async () => {
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/buildings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    buildingId: building._id,
+                    providerName: selectedProvider
+                }),
+            });
+            if (!response.ok) throw new Error("Failed to save assignment.");
+            toast({ title: "Success", description: `Assigned ${selectedProvider} to ${building.name}.` });
+            onAssignmentChange(); // Notify parent to refetch
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+
+    return (
+        <Card>
+            <CardHeader>
+            <CardTitle>{building.name}</CardTitle>
+            <CardDescription>{building.location} - {building.floors} floors</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+            {building.roomTypes.map((room, index) => (
+                <div key={index} className="p-3 bg-muted/50 rounded-md">
+                <div className='flex justify-between items-center mb-2'>
+                    <p className="font-semibold">{room.name}</p>
+                    <Badge variant="secondary">{room.count} rooms</Badge>
+                </div>
+                <div className='grid grid-cols-3 gap-x-4 text-sm'>
+                    {Object.entries(room.prices).map(([serviceId, price]) => {
+                        const service = availableServices.find(s => s.id === serviceId);
+                        return price > 0 ? <p key={serviceId}>{service?.label}: <span className='font-medium'>${price.toFixed(2)}</span></p> : null;
+                    })}
+                </div>
+                </div>
+            ))}
+            </CardContent>
+            <CardFooter className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between bg-muted/20 p-4">
+                <div className='flex items-center gap-2 w-full sm:w-auto'>
+                    <HardHat className='h-4 w-4 text-muted-foreground' />
+                    <Select onValueChange={setSelectedProvider} value={selectedProvider}>
+                         <SelectTrigger className="w-full sm:w-[200px]">
+                            <SelectValue placeholder="Assign a Provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="">Unassigned</SelectItem>
+                            {providers.map(p => (
+                                <SelectItem key={p.uid} value={p.name}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <Button onClick={handleSaveAssignment} disabled={isSaving || selectedProvider === building.assignedProvider} className="w-full sm:w-auto">
+                    {isSaving ? "Saving..." : "Save"}
+                 </Button>
+            </CardFooter>
+        </Card>
+    )
 }
 
 export default function BuildingsPage() {
   const { toast } = useToast();
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -83,20 +164,28 @@ export default function BuildingsPage() {
     name: "roomTypes"
   });
 
-  const fetchBuildings = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/buildings');
-      if (!response.ok) {
-        throw new Error('Failed to fetch buildings');
-      }
-      const data = await response.json();
-      setBuildings(data);
+      const [buildingsRes, providersRes] = await Promise.all([
+         fetch('/api/buildings'),
+         fetch('/api/users')
+      ]);
+
+      if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
+      const buildingsData = await buildingsRes.json();
+      setBuildings(buildingsData);
+
+      if (!providersRes.ok) throw new Error('Failed to fetch providers');
+      const allUsers: UserProfile[] = await providersRes.json();
+      const providerUsers = allUsers.filter(user => user.role === 'provider') as ProviderProfile[];
+      setProviders(providerUsers);
+
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not fetch buildings.',
+        description: 'Could not fetch page data.',
       });
     } finally {
       setLoading(false);
@@ -104,7 +193,7 @@ export default function BuildingsPage() {
   };
 
   useEffect(() => {
-    fetchBuildings();
+    fetchInitialData();
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -124,7 +213,7 @@ export default function BuildingsPage() {
         description: `Successfully added ${values.name}.`,
       });
       form.reset();
-      fetchBuildings(); // Refresh list
+      fetchInitialData(); // Refresh list
     } catch (error) {
       console.error('Building submission error:', error);
       toast({
@@ -142,7 +231,7 @@ export default function BuildingsPage() {
           Manage Buildings
         </h1>
         <p className="text-muted-foreground mt-2">
-          Add new buildings and define room types with service-specific pricing.
+          Add new buildings and assign service providers.
         </p>
       </div>
 
@@ -163,7 +252,7 @@ export default function BuildingsPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField control={form.control} name="location" render={({ field }) => (
+                   <FormField control={form.control} name="location" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl><div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Toronto, ON" {...field} className="pl-10" /></div></FormControl>
@@ -225,37 +314,21 @@ export default function BuildingsPage() {
              <CardHeader>
               <CardTitle>Existing Buildings</CardTitle>
               <CardDescription>
-                A list of all buildings and their room configurations.
+                A list of all buildings and their assigned service provider.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {loading ? (
-                  <><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></>
+                  <><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></>
                 ) : buildings.length > 0 ? (
                   buildings.map((building) => (
-                    <Card key={building._id}>
-                      <CardHeader>
-                        <CardTitle>{building.name}</CardTitle>
-                        <CardDescription>{building.location} - {building.floors} floors</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {building.roomTypes.map((room, index) => (
-                          <div key={index} className="p-3 bg-muted/50 rounded-md">
-                            <div className='flex justify-between items-center mb-2'>
-                                <p className="font-semibold">{room.name}</p>
-                                <Badge variant="secondary">{room.count} rooms</Badge>
-                            </div>
-                            <div className='grid grid-cols-3 gap-x-4 text-sm'>
-                                {Object.entries(room.prices).map(([serviceId, price]) => {
-                                    const service = availableServices.find(s => s.id === serviceId);
-                                    return price > 0 ? <p key={serviceId}>{service?.label}: <span className='font-medium'>${price.toFixed(2)}</span></p> : null;
-                                })}
-                            </div>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
+                    <ExistingBuildingCard 
+                        key={building._id}
+                        building={building}
+                        providers={providers}
+                        onAssignmentChange={fetchInitialData}
+                    />
                   ))
                 ) : (
                   <div className='text-center text-muted-foreground bg-slate-50 py-8 rounded-md'>

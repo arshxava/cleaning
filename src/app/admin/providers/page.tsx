@@ -61,7 +61,6 @@ const formSchema = z.object({
   confirmPassword: z.string(),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
   commissionPercentage: z.coerce.number().min(0).max(100, 'Commission must be between 0 and 100.'),
-  assignedBuildings: z.array(z.string()).optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -73,7 +72,6 @@ type Building = { _id: string; name: string; location: string };
 export default function ProvidersPage() {
   const { toast } = useToast();
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
-  const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -85,27 +83,18 @@ export default function ProvidersPage() {
       confirmPassword: '',
       phone: '',
       commissionPercentage: 10,
-      assignedBuildings: [],
     },
   });
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [providersRes, buildingsRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/buildings'),
-      ]);
+      const providersRes = await fetch('/api/users');
 
       if (!providersRes.ok) throw new Error('Failed to fetch providers');
       const allUsers: UserProfile[] = await providersRes.json();
       const providerUsers = allUsers.filter(user => user.role === 'provider') as ProviderProfile[];
       setProviders(providerUsers);
-
-      if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
-      const buildingsData = await buildingsRes.json();
-      console.log("Buildings fetched:", buildingsData);
-      setBuildings(buildingsData);
 
     } catch (error) {
       toast({
@@ -271,71 +260,6 @@ export default function ProvidersPage() {
                       </FormItem>
                     )}
                   />
-                   <FormField
-                    control={form.control}
-                    name="assignedBuildings"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Assign Buildings</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  className={cn(
-                                    "w-full justify-between",
-                                    !field.value?.length && "text-muted-foreground"
-                                  )}
-                                >
-                                  <span className='truncate'>
-                                  {field.value?.length ? `${field.value.length} selected` : "Select buildings"}
-                                  </span>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                               <Command>
-                                <CommandInput placeholder="Search buildings..." />
-                                  <CommandList>
-                                    <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
-                                    {buildings.length > 0 && (
-                                      <CommandGroup>
-                                        {buildings.map((building) => (
-                                          <CommandItem
-                                            value={building.name}
-                                            key={building._id}
-                                            onSelect={() => {
-                                              const currentValue = field.value || [];
-                                              const isSelected = currentValue.includes(building._id);
-                                              const newValue = isSelected
-                                                ? currentValue.filter((id) => id !== building._id)
-                                                : [...currentValue, building._id];
-                                              field.onChange(newValue);
-                                            }}
-                                          >
-                                            <Check
-                                              className={cn(
-                                                "mr-2 h-4 w-4",
-                                                (field.value || []).includes(building._id)
-                                                  ? "opacity-100"
-                                                  : "opacity-0"
-                                              )}
-                                            />
-                                            {building.name}
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    )}
-                                  </CommandList>
-                               </Command>
-                            </PopoverContent>
-                          </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
                   </Button>
@@ -383,17 +307,6 @@ export default function ProvidersPage() {
                                 </p>
                             </div>
                         </div>
-                         {provider.assignedBuildings && provider.assignedBuildings.length > 0 && (
-                            <div className="mt-4 w-full">
-                                <h4 className="text-xs font-semibold text-muted-foreground mb-2">Assigned Buildings</h4>
-                                <div className="flex flex-wrap gap-2">
-                                {provider.assignedBuildings.map(buildingId => {
-                                    const building = buildings.find(b => b._id === buildingId);
-                                    return building ? <Badge key={buildingId} variant="outline">{building.name}</Badge> : null;
-                                })}
-                                </div>
-                            </div>
-                        )}
                       </div>
                     </div>
                   ))
