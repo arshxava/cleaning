@@ -4,37 +4,7 @@
 import {NextResponse} from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import {z} from 'zod';
-import {getApps, initializeApp, App} from 'firebase-admin/app';
-import {getAuth} from 'firebase-admin/auth';
-import {credential} from 'firebase-admin';
-
-// --- Robust Firebase Admin SDK Initialization ---
-function initializeFirebaseAdmin(): App {
-  const apps = getApps();
-  if (apps.length > 0) {
-    return apps[0];
-  }
-
-  const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccountString) {
-    console.error(
-      'Firebase Admin SDK Error: FIREBASE_SERVICE_ACCOUNT environment variable is not set or empty.'
-    );
-    throw new Error(
-      'Server configuration error: Missing Firebase service account credentials.'
-    );
-  }
-
-  try {
-    const serviceAccount = JSON.parse(serviceAccountString);
-    return initializeApp({
-      credential: credential.cert(serviceAccount),
-    });
-  } catch (e: any) {
-    console.error('Failed to parse or initialize Firebase Admin SDK. Raw Error:', e.message);
-    throw new Error('Server configuration error: Could not initialize Firebase Admin. Please check the format of FIREBASE_SERVICE_ACCOUNT.');
-  }
-}
+// Do not import firebase-admin here to prevent module-level crashes
 
 // --- Zod Schemas for Validation ---
 const userSchema = z.object({
@@ -83,6 +53,31 @@ async function sendWelcomeEmail(to: string, name: string, password?: string) {
 // --- Main API Route Handlers ---
 export async function POST(request: Request) {
   try {
+    // --- Robust Firebase Admin SDK Initialization ---
+    const initializeFirebaseAdmin = () => {
+        const { getApps, initializeApp, credential } = require('firebase-admin/app');
+        const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+        
+        if (getApps().length > 0) {
+            return getApps()[0];
+        }
+
+        if (!serviceAccountString) {
+            throw new Error('Server configuration error: Missing Firebase service account credentials.');
+        }
+
+        try {
+            const serviceAccount = JSON.parse(serviceAccountString);
+            return initializeApp({
+                credential: credential.cert(serviceAccount),
+            });
+        } catch (e: any) {
+            console.error('Failed to parse or initialize Firebase Admin SDK:', e.message);
+            throw new Error('Server configuration error: Could not initialize Firebase Admin.');
+        }
+    };
+
+
     const json = await request.json();
     const userData = userSchema.parse(json);
 
@@ -90,13 +85,11 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
-    // Check for existing user first to prevent duplicate entries
     const existingUser = await usersCollection.findOne({ email: userData.email });
     if (existingUser) {
         return NextResponse.json({ message: 'User already exists.' }, { status: 409 });
     }
 
-    // Path for Standard User Signup (from client-side with existing UID from Firebase Auth)
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json({message: 'User UID is required for standard signup.'}, {status: 400});
@@ -107,13 +100,12 @@ export async function POST(request: Request) {
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // Path for Provider or Admin Creation (by Admin, requires new Firebase Auth user)
     if (userData.role === 'provider' || userData.role === 'admin') {
       if (!userData.password) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
-
-      // Initialize Firebase Admin SDK only when it's needed for this specific operation.
+      
+      const { getAuth } = require('firebase-admin/auth');
       initializeFirebaseAdmin();
       const auth = getAuth();
       
@@ -121,10 +113,9 @@ export async function POST(request: Request) {
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
-        emailVerified: true, // Providers/admins are created by an admin, so we can assume verification.
+        emailVerified: true,
       });
       
-      // If Firebase Auth user creation is successful, save the profile to DB
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {
         ...restOfUserData,
@@ -133,7 +124,6 @@ export async function POST(request: Request) {
       };
       await usersCollection.insertOne(dataToInsert);
 
-      // Send a welcome email to the new provider with their temporary password
       if (userData.role === 'provider') {
         await sendWelcomeEmail(userData.email, userData.name, userData.password);
       }
@@ -148,7 +138,6 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid data provided.', errors: error.errors}, {status: 400});
     }
-    // Return a more specific error message if available
     return NextResponse.json({message: error.message || 'An unexpected internal server error occurred.'}, {status: 500});
   }
 }
