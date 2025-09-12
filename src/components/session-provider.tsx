@@ -28,18 +28,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Step 1: Listen for Firebase auth state changes and update the user.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      // We initially set loading to true when the component mounts.
-      // We will set it to false only after we've checked for a profile.
+      if (!firebaseUser) {
+        setProfile(null);
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
   }, []);
-  
-  // Step 2: When the user state changes, fetch the corresponding profile from the DB.
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (user) {
@@ -49,8 +49,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             const profileData: UserProfile = await response.json();
             setProfile(profileData);
           } else {
-            // Profile not found in DB. This can happen if DB write fails after signup.
-            // Sign the user out to force a clean slate.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setProfile(null);
@@ -64,19 +62,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } finally {
            setLoading(false);
         }
-      } else {
-        // No user, so we are done loading.
-        setProfile(null);
-        setLoading(false);
       }
     };
     
-    fetchProfile();
-  }, [user]); // This effect runs whenever the `user` object changes.
+    // Only fetch profile if there is a user
+    if(user) {
+      fetchProfile();
+    }
+  }, [user]);
 
-  // Step 3: Handle route protection and redirects based on loading, user, and profile state.
   useEffect(() => {
-    if (loading) return; // Don't do anything while loading to prevent flicker
+    if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route);
 
@@ -90,7 +86,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
-      // If on an auth page (like sign-in), redirect to the correct dashboard
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -98,20 +93,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Enforce role-based access
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
       } else if (pathname.startsWith('/dashboard') && profile.role !== 'user') {
-        // Redirect non-users away from the user dashboard
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
       }
     }
   }, [user, profile, loading, router, pathname]);
-
-  if (loading) {
+  
+  const pathIsPublic = publicRoutes.some(route => pathname === route);
+  if (loading && !pathIsPublic) {
     return (
         <div className="flex flex-col min-h-screen">
             <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
