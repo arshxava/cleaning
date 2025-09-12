@@ -8,10 +8,12 @@ import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 import { useSession } from '@/components/session-provider'; 
 import { useToast } from '@/hooks/use-toast';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', roles: ['user'] },
@@ -98,8 +100,14 @@ const Header = () => {
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left">
-              <div className="flex flex-col gap-6 p-6">
+            <SheetContent side="left" className="p-0">
+               <SheetHeader className="p-6">
+                <VisuallyHidden>
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                  <SheetDescription>A list of links to navigate the application.</SheetDescription>
+                </VisuallyHidden>
+              </SheetHeader>
+              <div className="flex flex-col gap-6 px-6">
                 <Link href="/" className="flex items-center gap-2 font-bold text-lg" onClick={closeSheet}>
                   <Sparkles className="h-7 w-7 text-primary" />
                    <span>A+ Cleaning Solutions</span>
