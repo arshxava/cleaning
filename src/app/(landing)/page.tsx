@@ -38,7 +38,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -155,17 +154,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="w-full lg:grid lg:min-h-[calc(100vh-64px)] lg:grid-cols-2 xl:min-h-[calc(100vh-64px)]">
-      <div className="bg-muted lg:block">
-        <Image
-          src="/cleaning-hero.png"
-          alt="A clean and modern living room"
-          width={1200}
-          height={1800}
-          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-        />
-      </div>
-      <div className="flex items-center justify-center py-12">
+    <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
             <h1 className="text-3xl font-bold font-headline">Get Started</h1>
@@ -330,6 +319,5 @@ export default function SignUpPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
