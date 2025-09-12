@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, deleteApp, App } from 'firebase-admin/app';
+import { initializeApp, getApps, deleteApp, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 
@@ -103,14 +103,28 @@ export async function POST(request: Request) {
 
       let app: App;
       if (!getApps().length) {
-          console.log("Initializing Firebase Admin SDK...");
-          app = initializeApp({
-              credential: credential.applicationDefault()
-          });
-          console.log("Firebase Admin SDK initialized successfully.");
+        console.log("Initializing Firebase Admin SDK...");
+        const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+        if (!serviceAccountString) {
+          throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+        }
+        
+        let serviceAccount;
+        try {
+            // Replace escaped newlines before parsing
+            serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+        } catch (e: any) {
+            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
+            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON.");
+        }
+        
+        app = initializeApp({
+            credential: cert(serviceAccount)
+        });
+        console.log("Firebase Admin SDK initialized successfully.");
       } else {
-          app = getApps()[0];
-          console.log("Reusing existing Firebase Admin SDK app instance.");
+        app = getApps()[0];
+        console.log("Reusing existing Firebase Admin SDK app instance.");
       }
 
 
@@ -124,7 +138,7 @@ export async function POST(request: Request) {
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
-        emailVerified: true, // Providers/admins created by an admin are trusted.
+        emailVerified: true, 
       });
       console.log("Successfully created Firebase user with UID:", userRecord.uid);
       
@@ -162,10 +176,6 @@ export async function POST(request: Request) {
     console.error("Generic Error:", error);
     console.error("Error Message:", error.message);
     console.error("Error Stack:", error.stack);
-
-    if (error.message.includes('credential.applicationDefault()')) {
-       return NextResponse.json({ message: 'Internal Server Error: Could not find application default credentials. Please configure server environment.' }, { status: 500 });
-    }
 
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
