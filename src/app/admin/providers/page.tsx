@@ -297,35 +297,39 @@ export default function ProvidersPage() {
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                <Command>
                                 <CommandInput placeholder="Search buildings..." />
-                                  <CommandList>
+                                  {!loading && buildings.length > 0 ? (
+                                    <CommandList>
+                                      <CommandEmpty>No buildings found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {buildings.map((building) => (
+                                          <CommandItem
+                                            value={building.name}
+                                            key={building._id}
+                                            onSelect={() => {
+                                              const currentValue = field.value || [];
+                                              const isSelected = currentValue.includes(building._id);
+                                              const newValue = isSelected
+                                                ? currentValue.filter((id) => id !== building._id)
+                                                : [...currentValue, building._id];
+                                              field.onChange(newValue);
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                (field.value || []).includes(building._id)
+                                                  ? "opacity-100"
+                                                  : "opacity-0"
+                                              )}
+                                            />
+                                            {building.name}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  ) : (
                                     <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
-                                    <CommandGroup>
-                                      {buildings.map((building) => (
-                                        <CommandItem
-                                          value={building.name}
-                                          key={building._id}
-                                          onSelect={() => {
-                                             const currentValue = field.value || [];
-                                             const isSelected = currentValue.includes(building._id);
-                                             const newValue = isSelected
-                                               ? currentValue.filter((id) => id !== building._id)
-                                               : [...currentValue, building._id];
-                                             field.onChange(newValue);
-                                          }}
-                                        >
-                                          <Check
-                                            className={cn(
-                                              "mr-2 h-4 w-4",
-                                              (field.value || []).includes(building._id)
-                                                ? "opacity-100"
-                                                : "opacity-0"
-                                            )}
-                                          />
-                                          {building.name}
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                 </CommandList>
+                                  )}
                                </Command>
                             </PopoverContent>
                           </Popover>
