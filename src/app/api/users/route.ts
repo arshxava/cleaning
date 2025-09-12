@@ -1,9 +1,9 @@
-
 'use server';
 
 import {NextResponse} from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import {z} from 'zod';
+import { credential } from 'firebase-admin';
 
 // --- Zod Schemas for Validation ---
 const userSchema = z.object({
