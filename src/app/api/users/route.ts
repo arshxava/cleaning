@@ -81,16 +81,22 @@ export async function POST(request: Request) {
       const { getApps, initializeApp, cert } = require('firebase-admin/app');
       const { getAuth } = require('firebase-admin/auth');
 
-      const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-      if (!serviceAccountString) {
-          throw new Error('Server configuration error: Missing Firebase service account credentials.');
+      let adminApp;
+      if (!getApps().length) {
+          const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+          if (!serviceAccountString) {
+              throw new Error('Server configuration error: Missing Firebase service account credentials.');
+          }
+          try {
+            const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+            adminApp = initializeApp({ credential: cert(serviceAccount) });
+          } catch(e) {
+            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e);
+            throw new Error('Server configuration error: Invalid Firebase service account credentials.');
+          }
+      } else {
+        adminApp = getApps()[0];
       }
-      
-      const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
-
-      const adminApp = getApps().length > 0 
-          ? getApps()[0] 
-          : initializeApp({ credential: cert(serviceAccount) });
 
       const auth = getAuth(adminApp);
       
