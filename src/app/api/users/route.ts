@@ -2,9 +2,8 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, deleteApp, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { credential } from 'firebase-admin';
 
 const userSchema = z.object({
   uid: z.string().optional(),
@@ -18,17 +17,6 @@ const userSchema = z.object({
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   commissionPercentage: z.coerce.number().optional(),
 });
-
-export async function GET() {
-  try {
-    const client = await clientPromise;
-    const db = client.db();
-    const users = await db.collection('users').find({}).sort({ createdAt: -1 }).toArray();
-    return NextResponse.json(users);
-  } catch (error) {
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
-  }
-}
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
@@ -68,6 +56,18 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
   }
 }
 
+export async function GET() {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const users = await db.collection('users').find({}).sort({ createdAt: -1 }).toArray();
+    return NextResponse.json(users);
+  } catch (error) {
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+
 export async function POST(request: Request) {
   console.log("POST /api/users request received.");
   try {
@@ -86,24 +86,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
     }
 
-    // Regular user signup flow
     if (userData.role === 'user') {
+      console.log('Entering standard user creation flow.');
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for standard signup.' }, { status: 400 });
       }
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       await usersCollection.insertOne(dataToInsert);
+      console.log("Successfully inserted standard user profile into MongoDB.");
       return NextResponse.json(dataToInsert, { status: 201 });
     }
 
-    // Admin or Provider creation flow (requires Firebase Admin SDK)
     if (userData.role === 'provider' || userData.role === 'admin') {
       console.log(`Entering ${userData.role} creation flow.`);
 
       let app: App;
       if (!getApps().length) {
-        console.log("Initializing Firebase Admin SDK...");
+        console.log("Initializing Firebase Admin SDK for the first time.");
         const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountString) {
           throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
@@ -111,8 +111,10 @@ export async function POST(request: Request) {
         
         let serviceAccount;
         try {
-            // Replace escaped newlines before parsing
-            serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+            // This is the critical fix: replace escaped newlines before parsing.
+            const cleanedServiceAccountString = serviceAccountString.replace(/\\n/g, '\n');
+            serviceAccount = JSON.parse(cleanedServiceAccountString);
+            console.log("Successfully parsed FIREBASE_SERVICE_ACCOUNT JSON.");
         } catch (e: any) {
             console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
             throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON.");
@@ -126,7 +128,6 @@ export async function POST(request: Request) {
         app = getApps()[0];
         console.log("Reusing existing Firebase Admin SDK app instance.");
       }
-
 
       if (!userData.password) {
         return NextResponse.json({ message: 'Password is required to create a provider/admin account.' }, { status: 400 });
@@ -153,7 +154,6 @@ export async function POST(request: Request) {
       await usersCollection.insertOne(dataToInsert);
       console.log("Successfully inserted user profile into MongoDB.");
 
-      // Send credentials email to the new provider
       if (userData.role === 'provider') {
         console.log("Sending credentials email to new provider...");
         await sendProviderCredentialsEmail(userData.email, userData.password);
