@@ -26,9 +26,7 @@ function initializeFirebaseAdmin(): App {
   }
 
   try {
-    // The service account key is a JSON string that needs to be parsed.
-    // It is often stored with escaped newlines, so we replace them.
-    const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+    const serviceAccount = JSON.parse(serviceAccountString);
     return initializeApp({
       credential: credential.cert(serviceAccount),
     });
@@ -115,6 +113,7 @@ export async function POST(request: Request) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
 
+      // Initialize Firebase Admin SDK only when it's needed for this specific operation.
       initializeFirebaseAdmin();
       const auth = getAuth();
       
