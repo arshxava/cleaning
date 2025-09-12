@@ -298,7 +298,7 @@ export default function ProvidersPage() {
                                <Command>
                                 <CommandInput placeholder="Search buildings..." />
                                   <CommandList>
-                                    <CommandEmpty>see</CommandEmpty>
+                                    <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
                                     <CommandGroup>
                                       {buildings.map((building) => (
                                         <CommandItem
