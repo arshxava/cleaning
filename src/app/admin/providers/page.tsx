@@ -104,7 +104,7 @@ export default function ProvidersPage() {
 
       if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
       const buildingsData = await buildingsRes.json();
-      console.log(buildingsData)
+      console.log("Buildings fetched:", buildingsData);
       setBuildings(buildingsData);
 
     } catch (error) {
@@ -300,7 +300,7 @@ export default function ProvidersPage() {
                                 <CommandInput placeholder="Search buildings..." />
                                   <CommandList>
                                     <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
-                                    {!loading && buildings.length > 0 && (
+                                    {buildings.length > 0 && (
                                       <CommandGroup>
                                         {buildings.map((building) => (
                                           <CommandItem
