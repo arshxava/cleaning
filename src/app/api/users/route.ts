@@ -96,21 +96,16 @@ export async function POST(request: Request) {
     const db = client.db();
     const usersCollection = db.collection('users');
 
-    // Check if a user with this email already exists in the database
-    const existingProfile = await usersCollection.findOne({email: userData.email});
-    if (existingProfile) {
-      return NextResponse.json(
-        {message: 'A user with this email already exists in the database.'},
-        {status: 409}
-      );
-    }
-    
     // --- Path for Standard User Signup (from client-side) ---
     if (userData.role === 'user') {
       if (!userData.uid) {
         return NextResponse.json({message: 'User UID is required for standard user signup.'}, {status: 400});
       }
-      // Don't save password for standard users.
+      const existingUser = await usersCollection.findOne({ $or: [{ email: userData.email }, { uid: userData.uid }] });
+      if (existingUser) {
+        return NextResponse.json({ message: 'User already exists.' }, { status: 409 });
+      }
+
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {...restOfUserData, createdAt: new Date()};
       await usersCollection.insertOne(dataToInsert);
@@ -119,19 +114,43 @@ export async function POST(request: Request) {
 
     // --- Path for Provider or Admin Creation (by Admin) ---
     if (userData.role === 'provider' || userData.role === 'admin') {
+       const existingProfile = await usersCollection.findOne({email: userData.email});
+       if (existingProfile) {
+         return NextResponse.json(
+           {message: 'A user with this email already exists in the database.'},
+           {status: 409}
+         );
+       }
+      
       if (!userData.password) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
 
       initializeFirebaseAdmin(); // Initialize Admin SDK only when needed
+      let userRecord;
 
-      // Create user in Firebase Authentication
-      const userRecord = await getAuth().createUser({
-        email: userData.email,
-        password: userData.password,
-        displayName: userData.name,
-        emailVerified: true, // Users created by an admin can be auto-verified
-      });
+      try {
+        // Check if user exists in Firebase Auth
+        userRecord = await getAuth().getUserByEmail(userData.email).catch(() => null);
+        
+        if (!userRecord) {
+             // Create user in Firebase Authentication
+            userRecord = await getAuth().createUser({
+                email: userData.email,
+                password: userData.password,
+                displayName: userData.name,
+                emailVerified: true, // Users created by an admin can be auto-verified
+            });
+        }
+      } catch (authError: any) {
+         // Catch specific auth errors during creation/fetching
+         console.error('[FIREBASE_AUTH_ERROR]', authError);
+         return NextResponse.json(
+            {message: authError.message || 'Failed to create or find user in Firebase Authentication.'},
+            {status: 500}
+         );
+      }
+
 
       // Save the complete profile to our database, linking with the new Firebase UID
       const {password, ...restOfUserData} = userData;
@@ -161,15 +180,7 @@ export async function POST(request: Request) {
       return NextResponse.json({message: 'Invalid user data provided.', errors: error.errors}, {status: 400});
     }
     
-    // Check for Firebase-specific error codes
-    if (error.code === 'auth/email-already-exists') {
-         return NextResponse.json(
-            {message: 'A user with this email already exists in Firebase Authentication. Cannot create a new one.'},
-            {status: 409}
-        );
-    }
-    
-    // Catch initialization errors or other generic errors
+    // Generic error for anything else
     return NextResponse.json(
       {message: error.message || 'An unexpected internal server error occurred.'},
       {status: 500}

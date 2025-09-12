@@ -29,17 +29,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true); // Set loading true whenever auth state might change
+      setLoading(true);
       if (firebaseUser) {
         try {
+          // Add a small delay to allow DB to sync after signup
+          await new Promise(resolve => setTimeout(resolve, 500)); 
           const response = await fetch(`/api/users/${firebaseUser.uid}`);
+          
           if (response.ok) {
             const profileData: UserProfile = await response.json();
             setUser(firebaseUser);
             setProfile(profileData);
           } else {
-            // This case happens if the DB entry failed after signup.
-            // Signing them out forces a clean slate and prevents loops.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setUser(null);
@@ -55,31 +56,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
       }
-      setLoading(false); // Set loading to false after all async operations are done
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    // Wait until the initial loading is complete before running any redirect logic
     if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route);
 
-    // If there's no user and the route is not public, redirect to sign-in
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
-    // If there is a user and a profile, handle role-based redirects
     if (user && profile) {
       const pathIsAuth = authRoutes.includes(pathname);
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
-      // If a logged-in user is on an auth page (like /sign-in), redirect to their dashboard
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -87,19 +84,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Enforce role-based access control
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
-      } else if (profile.role === 'user' && (pathIsAdmin || pathIsProvider)) {
-        // Redirect regular users away from admin/provider areas
-        router.push('/dashboard');
+      } else if (pathname.startsWith('/dashboard') && profile.role !== 'user') {
+        // Redirect non-users away from the user dashboard
+        if (profile.role === 'admin') router.push('/admin/complaints');
+        else if (profile.role === 'provider') router.push('/provider/dashboard');
       }
     }
   }, [user, profile, loading, router, pathname]);
 
-  // While loading, show a skeleton UI for protected routes to prevent flicker
   if (loading && !publicRoutes.some(route => pathname === route)) {
     return (
         <div className="flex flex-col min-h-screen">
