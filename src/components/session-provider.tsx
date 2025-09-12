@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -23,47 +24,59 @@ const providerRoutePrefix = '/provider';
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true); // Start as true
+  const [loading, setLoading] = useState(true); // Always start loading
   const router = useRouter();
   const pathname = usePathname();
 
+  // Step 1: Listen for Firebase auth state changes and update the user.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      if (firebaseUser) {
-        try {
-          // Add a small delay to allow DB to sync after signup
-          await new Promise(resolve => setTimeout(resolve, 500)); 
-          const response = await fetch(`/api/users/${firebaseUser.uid}`);
-          
-          if (response.ok) {
-            const profileData: UserProfile = await response.json();
-            setUser(firebaseUser);
-            setProfile(profileData);
-          } else {
-            console.error("Profile not found for authenticated user, signing out.");
-            await auth.signOut();
-            setUser(null);
-            setProfile(null);
-          }
-        } catch (e) {
-          console.error("Failed to fetch user profile, signing out.", e);
-          await auth.signOut();
-          setUser(null);
-          setProfile(null);
-        }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      // We initially set loading to true when the component mounts.
+      // We will set it to false only after we've checked for a profile.
     });
 
     return () => unsubscribe();
   }, []);
-
+  
+  // Step 2: When the user state changes, fetch the corresponding profile from the DB.
   useEffect(() => {
-    if (loading) return; 
+    const fetchProfile = async () => {
+      if (user) {
+        try {
+          const response = await fetch(`/api/users/${user.uid}`);
+          if (response.ok) {
+            const profileData: UserProfile = await response.json();
+            setProfile(profileData);
+          } else {
+            // Profile not found in DB. This can happen if DB write fails after signup.
+            // Sign the user out to force a clean slate.
+            console.error("Profile not found for authenticated user, signing out.");
+            await auth.signOut();
+            setProfile(null);
+            setUser(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user profile, signing out.", error);
+          await auth.signOut();
+          setProfile(null);
+          setUser(null);
+        } finally {
+           setLoading(false);
+        }
+      } else {
+        // No user, so we are done loading.
+        setProfile(null);
+        setLoading(false);
+      }
+    };
+    
+    fetchProfile();
+  }, [user]); // This effect runs whenever the `user` object changes.
+
+  // Step 3: Handle route protection and redirects based on loading, user, and profile state.
+  useEffect(() => {
+    if (loading) return; // Don't do anything while loading to prevent flicker
 
     const pathIsPublic = publicRoutes.some(route => pathname === route);
 
@@ -77,6 +90,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
+      // If on an auth page (like sign-in), redirect to the correct dashboard
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -84,6 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      // Enforce role-based access
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
@@ -96,7 +111,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [user, profile, loading, router, pathname]);
 
-  if (loading && !publicRoutes.some(route => pathname === route)) {
+  if (loading) {
     return (
         <div className="flex flex-col min-h-screen">
             <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
