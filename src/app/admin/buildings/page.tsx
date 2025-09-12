@@ -73,22 +73,24 @@ type ProviderProfile = UserProfile & { role: 'provider' };
 
 const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { building: Building, providers: ProviderProfile[], onAssignmentChange: () => void }) => {
     const { toast } = useToast();
-    const [selectedProvider, setSelectedProvider] = useState(building.assignedProvider || '');
+    const [selectedProvider, setSelectedProvider] = useState(building.assignedProvider || 'unassigned');
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSaveAssignment = async () => {
         setIsSaving(true);
         try {
+            const providerNameToSave = selectedProvider === 'unassigned' ? '' : selectedProvider;
+
             const response = await fetch(`/api/buildings`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     buildingId: building._id,
-                    providerName: selectedProvider
+                    providerName: providerNameToSave
                 }),
             });
             if (!response.ok) throw new Error("Failed to save assignment.");
-            toast({ title: "Success", description: `Assigned ${selectedProvider} to ${building.name}.` });
+            toast({ title: "Success", description: `Assignment for ${building.name} updated.` });
             onAssignmentChange(); // Notify parent to refetch
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
@@ -128,14 +130,14 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { bui
                             <SelectValue placeholder="Assign a Provider" />
                         </SelectTrigger>
                         <SelectContent>
-                           <SelectItem value="">Unassigned</SelectItem>
+                           <SelectItem value="unassigned">Unassigned</SelectItem>
                             {providers.map(p => (
                                 <SelectItem key={p.uid} value={p.name}>{p.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
-                 <Button onClick={handleSaveAssignment} disabled={isSaving || selectedProvider === building.assignedProvider} className="w-full sm:w-auto">
+                 <Button onClick={handleSaveAssignment} disabled={isSaving || selectedProvider === (building.assignedProvider || 'unassigned')} className="w-full sm:w-auto">
                     {isSaving ? "Saving..." : "Save"}
                  </Button>
             </CardFooter>
