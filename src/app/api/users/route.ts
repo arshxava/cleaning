@@ -78,7 +78,6 @@ export async function POST(request: Request) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
       
-      // Dynamically import and initialize Firebase Admin SDK
       const { getApps, initializeApp, cert } = require('firebase-admin/app');
       const { getAuth } = require('firebase-admin/auth');
 
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
           throw new Error('Server configuration error: Missing Firebase service account credentials.');
       }
       
-      const serviceAccount = JSON.parse(serviceAccountString);
+      const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
 
       const adminApp = getApps().length > 0 
           ? getApps()[0] 
