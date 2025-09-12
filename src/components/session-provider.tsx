@@ -29,12 +29,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (!firebaseUser) {
+        // If no firebase user, clear profile and stop loading.
         setProfile(null);
         setLoading(false);
       }
+      // If there IS a firebase user, fetching profile will happen in the next useEffect
     });
 
     return () => unsubscribe();
@@ -49,43 +51,52 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             const profileData: UserProfile = await response.json();
             setProfile(profileData);
           } else {
+            // This is the critical failure point. A user exists in Firebase Auth, but not our DB.
+            // This can occur if DB entry fails after signup.
+            // Signing them out forces a clean slate.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
-            setProfile(null);
             setUser(null);
+            setProfile(null);
           }
         } catch (error) {
           console.error("Failed to fetch user profile, signing out.", error);
           await auth.signOut();
-          setProfile(null);
           setUser(null);
+          setProfile(null);
         } finally {
            setLoading(false);
         }
       }
     };
     
-    // Only fetch profile if there is a user
-    if(user) {
+    if (user) {
+      // Only fetch profile if a user is authenticated
       fetchProfile();
     }
+    // If no user, the other useEffect already handled setting state.
   }, [user]);
 
   useEffect(() => {
+    // This effect handles redirects based on session state.
+    // It will only run when loading is false.
     if (loading) return; 
 
     const pathIsPublic = publicRoutes.some(route => pathname === route);
 
+    // If not authenticated and on a private page, redirect to sign-in.
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
     }
 
+    // If authenticated and profile is loaded...
     if (user && profile) {
       const pathIsAuth = authRoutes.includes(pathname);
       const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
       const pathIsProvider = pathname.startsWith(providerRoutePrefix);
 
+      // If on an auth page (like sign-in), redirect to appropriate dashboard.
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -93,19 +104,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      // Enforce role-based access control.
       if (pathIsAdmin && profile.role !== 'admin') {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
       } else if (pathname.startsWith('/dashboard') && profile.role !== 'user') {
+        // If a non-user tries to access the user dashboard, redirect them.
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
       }
     }
   }, [user, profile, loading, router, pathname]);
   
+  // While loading, we prevent any rendering of protected routes to avoid flashes of content.
   const pathIsPublic = publicRoutes.some(route => pathname === route);
   if (loading && !pathIsPublic) {
+    // Return a full-page skeleton loader for a better user experience on protected routes.
     return (
         <div className="flex flex-col min-h-screen">
             <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -129,6 +144,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Once loading is complete, render the children.
   return (
     <SessionContext.Provider value={{ user, profile, loading }}>
       {children}
