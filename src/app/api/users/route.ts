@@ -87,7 +87,7 @@ export async function POST(request: Request) {
           throw new Error('Server configuration error: Missing Firebase service account credentials.');
       }
       
-      const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
+      const serviceAccount = JSON.parse(serviceAccountString);
 
       const adminApp = getApps().length > 0 
           ? getApps()[0] 
@@ -123,6 +123,10 @@ export async function POST(request: Request) {
     console.error('[API_USERS_POST_ERROR]', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid data provided.', errors: error.errors}, {status: 400});
+    }
+     // Check for Firebase-specific errors
+    if (error.code && error.code.startsWith('auth/')) {
+        return NextResponse.json({ message: error.message }, { status: 400 });
     }
     return NextResponse.json({message: error.message || 'An unexpected internal server error occurred.'}, {status: 500});
   }
