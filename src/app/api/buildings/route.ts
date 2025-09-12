@@ -50,9 +50,18 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db();
 
-    const buildings = await db.collection('buildings').find({}).sort({ name: 1 }).toArray();
-    
-    return NextResponse.json(buildings, { status: 200 });
+    const buildings = await db.collection('buildings')
+      .find({})
+      .sort({ name: 1 })
+      .toArray();
+
+    // Convert ObjectId to string
+    const formatted = buildings.map(b => ({
+      ...b,
+      _id: b._id.toString(),
+    }));
+
+    return NextResponse.json(formatted, { status: 200 });
   } catch (error) {
     console.error('Error fetching buildings:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
