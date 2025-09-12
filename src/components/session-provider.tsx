@@ -45,6 +45,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchProfile = async () => {
       if (user) {
+        setLoading(true); // Set loading true before fetching profile
         try {
           const response = await fetch(`/api/users/${user.uid}`);
           if (response.ok) {
@@ -52,7 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setProfile(profileData);
           } else {
             // This is the critical failure point. A user exists in Firebase Auth, but not our DB.
-            // This can occur if DB entry fails after signup.
+            // It can occur if DB entry fails after signup.
             // Signing them out forces a clean slate.
             console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
@@ -70,11 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    if (user) {
-      // Only fetch profile if a user is authenticated
-      fetchProfile();
-    }
-    // If no user, the other useEffect already handled setting state.
+    fetchProfile();
   }, [user]);
 
   useEffect(() => {
