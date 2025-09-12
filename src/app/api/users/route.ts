@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { initializeApp, getApps, deleteApp, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 
@@ -101,26 +101,16 @@ export async function POST(request: Request) {
     if (userData.role === 'provider' || userData.role === 'admin') {
       console.log(`Entering ${userData.role} creation flow.`);
 
-      let app;
-      try {
+      let app: App;
+      if (!getApps().length) {
           console.log("Initializing Firebase Admin SDK...");
-          const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-          if (!serviceAccountString) {
-              throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
-          }
-          const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
-
-          if (!getApps().length) {
-              app = initializeApp({
-                  credential: credential.cert(serviceAccount)
-              });
-          } else {
-              app = getApps()[0];
-          }
+          app = initializeApp({
+              credential: credential.applicationDefault()
+          });
           console.log("Firebase Admin SDK initialized successfully.");
-      } catch (e: any) {
-          console.error("CRITICAL: Firebase Admin SDK initialization failed.", e.message);
-          return NextResponse.json({ message: 'Internal Server Error: Could not initialize admin services.' }, { status: 500 });
+      } else {
+          app = getApps()[0];
+          console.log("Reusing existing Firebase Admin SDK app instance.");
       }
 
 
@@ -154,13 +144,7 @@ export async function POST(request: Request) {
         console.log("Sending credentials email to new provider...");
         await sendProviderCredentialsEmail(userData.email, userData.password);
       }
-
-      // Cleanup the temporary app instance if we created one
-      if (getApps().length > 1) { // Be careful if other parts of the app use admin
-        await deleteApp(app);
-        console.log("Cleaned up temporary Firebase Admin app instance.");
-      }
-
+      
       return NextResponse.json(dataToInsert, { status: 201 });
     }
 
@@ -168,6 +152,9 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('--- UNHANDLED ERROR in POST /api/users ---');
+    if (error.code === 'auth/email-already-exists') {
+        return NextResponse.json({ message: 'User with this email already exists in Firebase.' }, { status: 409 });
+    }
     if (error instanceof z.ZodError) {
       console.error("Zod Validation Error:", error.errors);
       return NextResponse.json({ message: 'Invalid data provided', errors: error.errors }, { status: 400 });
@@ -175,6 +162,11 @@ export async function POST(request: Request) {
     console.error("Generic Error:", error);
     console.error("Error Message:", error.message);
     console.error("Error Stack:", error.stack);
+
+    if (error.message.includes('credential.applicationDefault()')) {
+       return NextResponse.json({ message: 'Internal Server Error: Could not find application default credentials. Please configure server environment.' }, { status: 500 });
+    }
+
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
