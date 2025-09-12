@@ -1,8 +1,15 @@
 
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
-import { updateUserSchema } from '../route';
-import { ObjectId } from 'mongodb';
+import { z } from 'zod';
+
+const updateUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters.').optional(),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits.').optional(),
+  notificationPreference: z.enum(['email', 'sms']).optional(),
+  school: z.string().optional(),
+  roomSize: z.string().optional(),
+});
 
 
 export async function GET(
@@ -55,12 +62,10 @@ export async function PATCH(
     return NextResponse.json({ message: 'Profile updated successfully' }, { status: 200 });
 
   } catch (error) {
-    if (error instanceof Error && 'ZodError' in error) {
-        return NextResponse.json({ message: 'Invalid data', errors: (error as any).errors }, { status: 400 });
+    if (error instanceof z.ZodError) {
+        return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
     console.error('Error updating user:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
-
-    
