@@ -297,9 +297,9 @@ export default function ProvidersPage() {
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                <Command>
                                 <CommandInput placeholder="Search buildings..." />
-                                  {!loading && buildings.length > 0 ? (
-                                    <CommandList>
-                                      <CommandEmpty>No buildings found.</CommandEmpty>
+                                  <CommandList>
+                                    <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
+                                    {!loading && buildings.length > 0 && (
                                       <CommandGroup>
                                         {buildings.map((building) => (
                                           <CommandItem
@@ -326,10 +326,8 @@ export default function ProvidersPage() {
                                           </CommandItem>
                                         ))}
                                       </CommandGroup>
-                                    </CommandList>
-                                  ) : (
-                                    <CommandEmpty>{loading ? 'Loading...' : 'No buildings found.'}</CommandEmpty>
-                                  )}
+                                    )}
+                                  </CommandList>
                                </Command>
                             </PopoverContent>
                           </Popover>

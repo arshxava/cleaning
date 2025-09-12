@@ -45,6 +45,8 @@ export async function POST(request: Request) {
   }
 }
 
+// /api/buildings/route.ts
+
 export async function GET() {
   try {
     const client = await clientPromise;
@@ -52,13 +54,15 @@ export async function GET() {
 
     const buildings = await db.collection('buildings')
       .find({})
+      .project({ name: 1, location: 1 }) // Only fetch necessary fields
       .sort({ name: 1 })
       .toArray();
 
-    // Convert ObjectId to string
+    // ✅ Convert ObjectId to string
     const formatted = buildings.map(b => ({
-      ...b,
       _id: b._id.toString(),
+      name: b.name,
+      location: b.location,
     }));
 
     return NextResponse.json(formatted, { status: 200 });
