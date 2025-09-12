@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
@@ -28,6 +28,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Effect 1: Listen for Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
@@ -39,6 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  // Effect 2: Fetch profile only when a user object exists
   useEffect(() => {
     const fetchProfile = async () => {
       if (user) {
@@ -70,10 +72,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     fetchProfile();
   }, [user]);
 
+  // Effect 3: Handle routing logic once loading is complete
   useEffect(() => {
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.some(route => pathname === route);
+    const pathIsPublic = publicRoutes.includes(pathname);
 
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
@@ -103,7 +106,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [user, profile, loading, router, pathname]);
   
-  const pathIsPublic = publicRoutes.some(route => pathname === route);
+  const pathIsPublic = publicRoutes.includes(pathname);
   if (loading && !pathIsPublic) {
     return (
         <div className="flex flex-col min-h-screen">

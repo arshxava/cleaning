@@ -8,9 +8,6 @@ import {getApps, initializeApp, App} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {credential} from 'firebase-admin';
 
-// Correctly initialize dotenv to load environment variables
-import 'dotenv/config';
-
 // --- Robust Firebase Admin SDK Initialization ---
 function initializeFirebaseAdmin(): App {
   const apps = getApps();
@@ -29,6 +26,8 @@ function initializeFirebaseAdmin(): App {
   }
 
   try {
+    // The service account key is a JSON string that needs to be parsed.
+    // It is often stored with escaped newlines, so we replace them.
     const serviceAccount = JSON.parse(serviceAccountString.replace(/\\n/g, '\n'));
     return initializeApp({
       credential: credential.cert(serviceAccount),
@@ -51,7 +50,7 @@ const userSchema = z.object({
   roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   assignedBuildings: z.array(z.string()).optional(),
-  commissionPercentage: z.number().optional(),
+  commissionPercentage: z.coerce.number().optional(),
 });
 
 export const updateUserSchema = userSchema.partial().omit({email: true, role: true, password: true});
@@ -85,23 +84,24 @@ async function sendWelcomeEmail(to: string, name: string, password?: string) {
 
 // --- Main API Route Handlers ---
 export async function POST(request: Request) {
-  let dbClient;
   try {
     const json = await request.json();
     const userData = userSchema.parse(json);
 
-    dbClient = await clientPromise;
-    const db = dbClient.db();
+    const client = await clientPromise;
+    const db = client.db();
     const usersCollection = db.collection('users');
 
-    // Path for Standard User Signup (from client-side)
+    // Check for existing user first to prevent duplicate entries
+    const existingUser = await usersCollection.findOne({ email: userData.email });
+    if (existingUser) {
+        return NextResponse.json({ message: 'User already exists.' }, { status: 409 });
+    }
+
+    // Path for Standard User Signup (from client-side with existing UID from Firebase Auth)
     if (userData.role === 'user') {
       if (!userData.uid) {
-        return NextResponse.json({message: 'User UID is required.'}, {status: 400});
-      }
-      const existingUser = await usersCollection.findOne({ $or: [{ email: userData.email }, { uid: userData.uid }] });
-      if (existingUser) {
-        return NextResponse.json({ message: 'User already exists.' }, { status: 409 });
+        return NextResponse.json({message: 'User UID is required for standard signup.'}, {status: 400});
       }
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {...restOfUserData, createdAt: new Date()};
@@ -109,13 +109,8 @@ export async function POST(request: Request) {
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    // Path for Provider or Admin Creation (by Admin)
+    // Path for Provider or Admin Creation (by Admin, requires new Firebase Auth user)
     if (userData.role === 'provider' || userData.role === 'admin') {
-      const existingProfile = await usersCollection.findOne({email: userData.email});
-      if (existingProfile) {
-        return NextResponse.json({message: 'A user with this email already exists.'}, {status: 409});
-      }
-      
       if (!userData.password) {
         return NextResponse.json({message: `Password is required for ${userData.role} creation.`}, {status: 400});
       }
@@ -123,20 +118,14 @@ export async function POST(request: Request) {
       initializeFirebaseAdmin();
       const auth = getAuth();
       
-      let userRecord;
-      try {
-        userRecord = await auth.createUser({
-          email: userData.email,
-          password: userData.password,
-          displayName: userData.name,
-          emailVerified: true,
-        });
-      } catch (authError: any) {
-        console.error('Firebase Auth creation error:', authError);
-        return NextResponse.json({message: authError.message || 'Failed to create user in Firebase.'}, {status: 500});
-      }
-
-      // If Firebase Auth user is created, save profile to DB
+      const userRecord = await auth.createUser({
+        email: userData.email,
+        password: userData.password,
+        displayName: userData.name,
+        emailVerified: true, // Providers/admins are created by an admin, so we can assume verification.
+      });
+      
+      // If Firebase Auth user creation is successful, save the profile to DB
       const {password, ...restOfUserData} = userData;
       const dataToInsert = {
         ...restOfUserData,
@@ -145,6 +134,7 @@ export async function POST(request: Request) {
       };
       await usersCollection.insertOne(dataToInsert);
 
+      // Send a welcome email to the new provider with their temporary password
       if (userData.role === 'provider') {
         await sendWelcomeEmail(userData.email, userData.name, userData.password);
       }
@@ -152,13 +142,14 @@ export async function POST(request: Request) {
       return NextResponse.json(dataToInsert, {status: 201});
     }
 
-    return NextResponse.json({message: 'Invalid user role.'}, {status: 400});
+    return NextResponse.json({message: 'Invalid user role specified.'}, {status: 400});
 
   } catch (error: any) {
     console.error('[API_USERS_POST_ERROR]', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({message: 'Invalid data provided.', errors: error.errors}, {status: 400});
     }
+    // Return a more specific error message if available
     return NextResponse.json({message: error.message || 'An unexpected internal server error occurred.'}, {status: 500});
   }
 }
@@ -168,9 +159,7 @@ export async function GET(request: Request) {
   try {
     const client = await clientPromise;
     const db = client.db();
-
     const users = await db.collection('users').find({}).sort({createdAt: -1}).toArray();
-
     return NextResponse.json(users, {status: 200});
   } catch (error) {
     console.error('Error fetching users:', error);
