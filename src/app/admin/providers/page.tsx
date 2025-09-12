@@ -104,6 +104,7 @@ export default function ProvidersPage() {
 
       if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
       const buildingsData = await buildingsRes.json();
+      console.log(buildingsData)
       setBuildings(buildingsData);
 
     } catch (error) {
