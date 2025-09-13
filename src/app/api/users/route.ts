@@ -75,6 +75,8 @@ export async function GET() {
 export async function POST(request: Request) {
   console.log("POST /api/users request received.");
   const originalJson = await request.json();
+  const submittedPassword = originalJson.password; // Capture password early
+
   try {
     const userData = userSchema.parse(originalJson);
     console.log("User data parsed successfully:", { name: userData.name, email: userData.email, role: userData.role });
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
       await usersCollection.insertOne(dataToInsert);
       console.log("Successfully inserted provider/admin into database.");
       
-      const submittedPassword = (originalJson as UserData).password;
+      // Corrected check to send email
       if (submittedPassword && userData.role === 'provider') {
         console.log("Triggering credential email to provider.");
         await sendProviderCredentialsEmail(userData.email, submittedPassword);
