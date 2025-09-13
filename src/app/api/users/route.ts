@@ -21,12 +21,10 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
   console.log("Sending email to:", email)
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
-  const logoUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/logo.png`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <img src="${logoUrl}" alt="A+ Cleaning Solutions" width="150" style="margin-bottom: 20px;" />
-      <h1>Welcome to A+ Cleaning Solutions!</h1>
+      <h1 style="color: #333;">Welcome to A+ Cleaning Solutions!</h1>
       <p>An administrator has created a service provider account for you.</p>
       <p>You can now log in to your provider dashboard using these credentials:</p>
       <ul>

@@ -16,6 +16,7 @@ import {
   HardHat,
   Briefcase,
   Receipt,
+  Sparkles,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -96,7 +97,8 @@ export default function AdminLayout({
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <Link href="/admin/complaints" className="flex items-center gap-2 font-semibold">
-              <Image src="/logo.png" alt="A+ Cleaning Admin" width={150} height={40} />
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span>A+ Cleaning Solutions</span>
             </Link>
           </div>
           <div className="flex-1">

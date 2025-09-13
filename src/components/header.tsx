@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, LogOut, Shield, Briefcase } from 'lucide-react';
+import { Menu, LogOut, Shield, Briefcase, Sparkles } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -63,7 +63,8 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
         <Link href="/" className="mr-6 flex items-center gap-2">
-          <Image src="/logo.png" alt="A+ Cleaning Solutions" width={150} height={40} />
+          <Sparkles className="h-6 w-6 text-primary" />
+          <span className="font-bold">A+ Cleaning Solutions</span>
         </Link>
         <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
           {visibleLinks.map((link) => (
@@ -109,7 +110,8 @@ const Header = () => {
               </SheetHeader>
               <div className="flex flex-col gap-6 px-6">
                 <Link href="/" className="flex items-center gap-2 font-bold text-lg" onClick={closeSheet}>
-                  <Image src="/logo.png" alt="A+ Cleaning Solutions" width={150} height={40} />
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  <span className="font-bold">A+ Cleaning Solutions</span>
                 </Link>
                 <nav className="flex flex-col gap-4">
                   {visibleLinks.map((link) => (
