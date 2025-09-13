@@ -7,10 +7,9 @@ import admin from 'firebase-admin';
 import { serviceAccount as serviceAccountCredentials } from '@/lib/firebase-admin-credentials';
 
 const userSchema = z.object({
-  uid: z.string().optional(),
   name: z.string(),
   email: z.string().email(),
-  password: z.string().optional(),
+  password: z.string(), // Password is required for creation
   phone: z.string(),
   notificationPreference: z.enum(['email', 'sms']).optional(),
   school: z.string().optional(),
@@ -19,7 +18,6 @@ const userSchema = z.object({
   commissionPercentage: z.coerce.number().optional(),
 });
 
-type UserData = z.infer<typeof userSchema>;
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
@@ -78,7 +76,6 @@ export async function POST(request: Request) {
   try {
     originalJson = await request.json();
     const submittedPassword = originalJson.password; 
-
     const userData = userSchema.parse(originalJson);
 
     const client = await clientPromise;
@@ -144,7 +141,7 @@ export async function POST(request: Request) {
     }
     
     // For 'user' roles, the client will handle the email verification flow.
-    // We return a success message here, and the client will redirect.
+    // We return a success message here, and the client will sign in and proceed.
     return NextResponse.json({ message: 'User created successfully', uid: firebaseUid }, { status: 201 });
 
 

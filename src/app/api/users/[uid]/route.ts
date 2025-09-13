@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -19,10 +20,13 @@ export async function GET(
     const db = client.db();
 
     const user = await db.collection('users').findOne({ uid: params.uid });
-    if (!user) return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
 
     return NextResponse.json(user);
   } catch (error) {
+    console.error(`Error fetching user ${params.uid}:`, error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -48,6 +52,9 @@ export async function PATCH(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
+    console.error(`Error updating user ${params.uid}:`, error);
     return NextResponse.json({ message: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
+
+    

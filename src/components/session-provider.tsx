@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,33 +21,6 @@ const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
-// This function will attempt to create a profile if one doesn't exist for an authenticated user.
-const ensureUserProfile = async (user: User): Promise<UserProfile | null> => {
-  try {
-    const response = await fetch('/api/users/ensure-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || 'New User',
-        phone: user.phoneNumber || '',
-      }),
-    });
-
-    if (response.ok) {
-      const profileData = await response.json();
-      return profileData;
-    }
-    console.error("ensureUserProfile failed with status:", response.status, await response.text());
-    return null;
-  } catch (error) {
-    console.error('Failed to ensure user profile:', error);
-    return null;
-  }
-};
-
-
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -55,56 +28,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Effect 1: Listen for Firebase auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setLoading(true); // Set loading to true whenever user state changes
-      setUser(firebaseUser);
-      if (!firebaseUser) {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Effect 2: Fetch profile, and create it if it's missing.
-  useEffect(() => {
-    const fetchAndEnsureProfile = async () => {
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
+      if (firebaseUser) {
+        setUser(firebaseUser);
         try {
-          const response = await fetch(`/api/users/${user.uid}`);
+          const response = await fetch(`/api/users/${firebaseUser.uid}`);
           if (response.ok) {
-            const profileData: UserProfile = await response.json();
+            const profileData = await response.json();
             setProfile(profileData);
           } else if (response.status === 404) {
-            console.log("Profile not found, attempting to create one...");
-            const newProfile = await ensureUserProfile(user);
-            if (newProfile) {
-              setProfile(newProfile);
-            } else {
-              // If we still can't get a profile, something is wrong. Log out.
-              console.error("Failed to create a profile on-the-fly. Signing out.");
-              await auth.signOut();
-            }
-          } else {
-            console.error("API error fetching profile, signing out.");
+            // This can occur if DB entry fails after signup.
+            // Signing them out forces a clean slate.
+            console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
+            setUser(null);
+            setProfile(null);
+          } else {
+             console.error("API error fetching profile, signing out.");
+             await auth.signOut();
           }
         } catch (error) {
           console.error("Failed to fetch user profile, signing out.", error);
           await auth.signOut();
         } finally {
-           setLoading(false);
+          setLoading(false);
         }
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
       }
-      // No user, no profile to fetch.
-    };
-    
-    fetchAndEnsureProfile();
-  }, [user]);
+    });
 
-  // Effect 3: Handle routing logic once loading is complete
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (loading) return; 
 
@@ -131,7 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
-      } else if (!pathIsAdmin && !pathIsProvider && profile.role !== 'user') {
+      } else if (!pathIsAdmin && !pathIsProvider && (profile.role === 'admin' || profile.role === 'provider')) {
         // if user is not on an admin/provider page but their role is admin/provider, redirect them
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
@@ -178,3 +138,5 @@ export function useSession() {
   }
   return context;
 }
+
+    
