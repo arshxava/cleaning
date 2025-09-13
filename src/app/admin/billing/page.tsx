@@ -8,7 +8,10 @@ import {
   Loader2,
   BellRing,
   FileText,
+  Download,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, Booking, InvoiceRequest } from '@/lib/types';
 import {
@@ -31,8 +34,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 type ProviderProfile = UserProfile & { role: 'provider' };
 
@@ -52,7 +59,6 @@ export default function BillingPage() {
   const [invoiceRequests, setInvoiceRequests] = useState<InvoiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingProvider, setPayingProvider] = useState<string | null>(null);
-  const [isPreviewing, setIsPreviewing] = useState<ProviderBillingInfo | null>(null);
 
   const fetchBillingData = async () => {
     try {
@@ -155,6 +161,39 @@ export default function BillingPage() {
     fetchBillingData();
   }, []);
 
+  const handleGenerateInvoice = (info: ProviderBillingInfo) => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(22);
+    doc.text('Payout Invoice', 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Provider: ${info.provider.name}`, 14, 32);
+    doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`, 14, 38);
+    
+    doc.autoTable({
+        startY: 50,
+        head: [['Booking Date', 'Service', 'Client', 'Service Price', 'Provider Earning']],
+        body: info.unpaidBookings.map(b => {
+            const earning = b.price - (b.price * ((info.provider.commissionPercentage || 0) / 100));
+            return [
+                new Date(b.date).toLocaleDateString('en-CA'),
+                b.service,
+                b.userName,
+                `$${b.price.toFixed(2)}`,
+                `$${earning.toFixed(2)}`
+            ];
+        }),
+        foot: [['', '', '', 'Total Payout Due', `$${info.totalPayoutDue.toFixed(2)}`]],
+        footStyles: {
+            fontStyle: 'bold',
+            fillColor: [230, 230, 230]
+        }
+    });
+
+    doc.save(`invoice-${info.provider.name}-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast({ title: "Invoice Generated", description: `PDF invoice for ${info.provider.name} has been downloaded.` });
+  }
+
   const handlePayProvider = async (providerName: string, unpaidBookingIds: string[], amount: number) => {
      setPayingProvider(providerName);
      try {
@@ -186,7 +225,6 @@ export default function BillingPage() {
             description: `${providerName} has been paid $${amount.toFixed(2)}.`,
         });
         
-        setIsPreviewing(null);
         fetchBillingData(); // Refresh data
      } catch (error) {
          toast({
@@ -311,14 +349,33 @@ export default function BillingPage() {
                         <p className="text-sm text-muted-foreground">Total Payout Due</p>
                         <p className="text-2xl font-bold">${info.totalPayoutDue.toFixed(2)}</p>
                     </div>
-                    <Button 
-                        size="lg" 
-                        onClick={() => setIsPreviewing(info)}
-                        disabled={info.totalPayoutDue === 0 || payingProvider !== null}
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Generate &amp; Preview Invoice
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline"
+                            onClick={() => handleGenerateInvoice(info)}
+                            disabled={info.totalPayoutDue === 0}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Generate Invoice
+                        </Button>
+                        <Button 
+                            size="lg" 
+                            onClick={() => handlePayProvider(info.provider.name, info.unpaidBookings.map(b => b._id), info.totalPayoutDue)}
+                            disabled={info.totalPayoutDue === 0 || payingProvider !== null}
+                        >
+                          {payingProvider === info.provider.name ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="mr-2 h-4 w-4" />
+                              Pay Now
+                            </>
+                          )}
+                        </Button>
+                    </div>
                 </div>
               </CardFooter>
             </Card>
@@ -331,64 +388,8 @@ export default function BillingPage() {
             </CardContent>
         </Card>
       )}
-
-      {isPreviewing && (
-        <Dialog open={!!isPreviewing} onOpenChange={() => setIsPreviewing(null)}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Invoice for {isPreviewing.provider.name}</DialogTitle>
-                    <DialogDescription>
-                        Review the details below before sending payment for the current period.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto p-1">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Booking Date</TableHead>
-                                <TableHead>Service</TableHead>
-                                <TableHead className="text-right">Earning</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isPreviewing.unpaidBookings.map(booking => (
-                                <TableRow key={booking._id}>
-                                    <TableCell>{new Date(booking.date).toLocaleDateString('en-CA')}</TableCell>
-                                    <TableCell>{booking.service} - {booking.userName}</TableCell>
-                                    <TableCell className="text-right">${(booking.price - (booking.price * ((isPreviewing.provider.commissionPercentage || 0) / 100))).toFixed(2)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-                 <Separator />
-                 <div className="flex justify-end items-center gap-4 pt-4">
-                     <p className="text-muted-foreground">Total Payout:</p>
-                     <p className="text-2xl font-bold">${isPreviewing.totalPayoutDue.toFixed(2)}</p>
-                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPreviewing(null)}>Cancel</Button>
-                    <Button 
-                        onClick={() => handlePayProvider(isPreviewing.provider.name, isPreviewing.unpaidBookings.map(b => b._id), isPreviewing.totalPayoutDue)}
-                        disabled={payingProvider !== null}
-                    >
-                      {payingProvider === isPreviewing.provider.name ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign className="mr-2 h-4 w-4" />
-                          Send &amp; Pay
-                        </>
-                      )}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }
 
+    
