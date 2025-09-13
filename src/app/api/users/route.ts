@@ -48,7 +48,8 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
     });
 
     if (!response.ok) {
-      console.error("API call to /api/send-email failed:", await response.text());
+      const errorBody = await response.text();
+      console.error("API call to /api/send-email failed:", response.status, errorBody);
     } else {
         console.log("Provider credential email sent successfully via API call to:", email);
     }
@@ -102,60 +103,52 @@ export async function POST(request: Request) {
       console.log(`Processing '${userData.role}' role creation.`);
       let firebaseUid: string | undefined = undefined;
 
-      // --- Resilient Firebase Admin SDK Initialization ---
       const isAdminSdkEnabled = process.env.FIREBASE_ADMIN_SDK_ENABLED === 'true';
-
       if (isAdminSdkEnabled) {
-          try {
-              if (!admin.apps.length) {
-                  console.log("Initializing Firebase Admin SDK...");
-                  // This check is important. The placeholder key will cause a crash if not checked.
-                  if (serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
-                      throw new Error("Placeholder private key detected in firebase-admin-credentials.ts. Cannot initialize Firebase Admin SDK.");
-                  }
-                  admin.initializeApp({
-                      credential: admin.credential.cert(serviceAccount)
-                  });
-                  console.log("Firebase Admin SDK initialized successfully.");
-              }
-
-              if (!userData.password) {
-                  throw new Error('Password is required to create a provider/admin account via Admin SDK.');
-              }
-
-              console.log("Creating user in Firebase Auth...");
-              const userRecord = await admin.auth().createUser({
-                  email: userData.email,
-                  password: userData.password,
-                  displayName: userData.name,
-                  emailVerified: true,
-              });
-              console.log("Successfully created user in Firebase Auth with UID:", userRecord.uid);
-              firebaseUid = userRecord.uid;
-
-          } catch (e: any) {
-              console.error("CRITICAL: Firebase Admin SDK operation failed.", e.message);
-              // Do not re-throw, allow saving to MongoDB without a Firebase account.
-              // This prevents a 500 error and makes the API stable.
+        try {
+          if (!admin.apps.length) {
+            console.log("Initializing Firebase Admin SDK...");
+             if (serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
+                console.warn("Placeholder private key detected in firebase-admin-credentials.ts. Firebase Admin SDK will not be initialized.");
+             } else {
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount)
+                });
+                console.log("Firebase Admin SDK initialized successfully.");
+             }
           }
+
+          if (admin.apps.length > 0 && userData.password) {
+            console.log("Creating user in Firebase Auth...");
+            const userRecord = await admin.auth().createUser({
+              email: userData.email,
+              password: userData.password,
+              displayName: userData.name,
+              emailVerified: true,
+            });
+            console.log("Successfully created user in Firebase Auth with UID:", userRecord.uid);
+            firebaseUid = userRecord.uid;
+          }
+
+        } catch (e: any) {
+          console.error("CRITICAL: Firebase Admin SDK operation failed.", e.message);
+        }
       } else {
-          console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation.");
+        console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation.");
       }
-      // --- End of Resilient Block ---
 
       const { password, ...rest } = userData;
       const dataToInsert = {
         ...rest,
-        uid: firebaseUid || `temp_${new Date().getTime()}`, // Provide a temporary UID if Firebase creation failed
+        uid: firebaseUid || `temp_${new Date().getTime()}`,
         createdAt: new Date(),
       };
 
       await usersCollection.insertOne(dataToInsert);
       console.log("Successfully inserted provider/admin into database.");
 
-      // Only send email if a password was provided for creation
       if (userData.password && userData.role === 'provider') {
-        console.log("Sending credential email to provider.");
+        console.log("Triggering credential email to provider.");
         await sendProviderCredentialsEmail(userData.email, userData.password);
       }
       
