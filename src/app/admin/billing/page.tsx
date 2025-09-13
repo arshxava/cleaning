@@ -161,38 +161,39 @@ export default function BillingPage() {
         </div>
       </div>
       
-      {loading ? (
-          <Skeleton className="h-32 w-full" />
-      ) : invoiceRequests.length > 0 && (
-          <Card className="mb-8 bg-amber-50 border-amber-300">
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-amber-900">
-                      <BellRing />
-                      Pending Invoice Requests
-                  </CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <Table>
-                      <TableHeader>
-                          <TableRow>
-                              <TableHead>Provider</TableHead>
-                              <TableHead>Request Date</TableHead>
-                              <TableHead>Invoice For</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {invoiceRequests.map(req => (
-                              <TableRow key={req._id}>
-                                  <TableCell className="font-medium">{req.providerName}</TableCell>
-                                  <TableCell>{new Date(req.requestDate).toLocaleDateString()}</TableCell>
-                                  <TableCell>{new Date(req.year, req.month).toLocaleString('default', { month: 'long', year: 'numeric' })}</TableCell>
-                              </TableRow>
-                          ))}
-                      </TableBody>
-                  </Table>
-              </CardContent>
-          </Card>
-      )}
+       <Card className="mb-8 bg-amber-50 border-amber-300">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-amber-900">
+                    <BellRing />
+                    Pending Invoice Requests
+                    {invoiceRequests.length > 0 && <Badge className="ml-2 bg-amber-600">{invoiceRequests.length}</Badge>}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {loading ? <Skeleton className="h-24 w-full" /> : invoiceRequests.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Provider</TableHead>
+                                <TableHead>Request Date</TableHead>
+                                <TableHead>Invoice For</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {invoiceRequests.map(req => (
+                                <TableRow key={req._id}>
+                                    <TableCell className="font-medium">{req.providerName}</TableCell>
+                                    <TableCell>{new Date(req.requestDate).toLocaleDateString()}</TableCell>
+                                    <TableCell>{new Date(req.year, req.month).toLocaleString('default', { month: 'long', year: 'numeric' })}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No pending invoice requests at this time.</p>
+                )}
+            </CardContent>
+        </Card>
       
       {loading ? (
         <div className="grid gap-6">
