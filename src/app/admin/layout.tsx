@@ -17,6 +17,7 @@ import {
   Briefcase,
   Receipt,
 } from 'lucide-react';
+import Image from 'next/image';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,8 +96,7 @@ export default function AdminLayout({
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <Link href="/admin/complaints" className="flex items-center gap-2 font-semibold">
-              <Package2 className="h-6 w-6" />
-              <span className="">A+ Cleaning Admin</span>
+              <Image src="/logo.png" alt="A+ Cleaning Admin" width={150} height={40} />
             </Link>
           </div>
           <div className="flex-1">
