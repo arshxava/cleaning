@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert, credential } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 const userSchema = z.object({
@@ -106,6 +106,7 @@ export async function POST(request: Request) {
         console.log("Initializing Firebase Admin SDK for the first time.");
         const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountString) {
+          console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
           throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
         }
         
