@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, App, cert, credential } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 const userSchema = z.object({
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         console.log("Initializing Firebase Admin SDK for the first time.");
         const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountString) {
-          console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+          console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
           throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
         }
         
@@ -117,8 +117,8 @@ export async function POST(request: Request) {
             serviceAccount = JSON.parse(cleanedServiceAccountString);
             console.log("Successfully parsed FIREBASE_SERVICE_ACCOUNT JSON.");
         } catch (e: any) {
-            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:", e.message);
-            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON.");
+            console.error("CRITICAL: Failed to parse FIREBASE_SERVICE_ACCOUNT JSON. The variable is likely malformed.", e.message);
+            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON. Please check its value in your deployment settings.");
         }
         
         app = initializeApp({
