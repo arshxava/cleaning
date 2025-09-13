@@ -8,7 +8,7 @@ import {
   Loader2,
   BellRing,
   FileText,
-  Download,
+  Send,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -223,8 +223,8 @@ export default function BillingPage() {
     doc.text('Payment will be processed within 5-7 business days.', 14, finalY + 25);
 
 
-    doc.save(`invoice-${info.provider.name}-${invoiceDate.toISOString().split('T')[0]}.pdf`);
-    toast({ title: "Invoice Generated", description: `PDF invoice for ${info.provider.name} has been downloaded.` });
+    doc.output('dataurlnewwindow');
+    toast({ title: "Invoice Generated", description: `PDF invoice for ${info.provider.name} is ready for preview.` });
   }
 
   const handlePayProvider = async (providerName: string, unpaidBookingIds: string[], amount: number) => {
@@ -388,8 +388,8 @@ export default function BillingPage() {
                             onClick={() => handleGenerateInvoice(info)}
                             disabled={info.totalPayoutDue === 0}
                         >
-                          <Download className="mr-2 h-4 w-4" />
-                          Generate Invoice
+                          <FileText className="mr-2 h-4 w-4" />
+                          Generate & Preview Invoice
                         </Button>
                         <Button 
                             size="lg" 
@@ -403,8 +403,8 @@ export default function BillingPage() {
                             </>
                           ) : (
                             <>
-                              <DollarSign className="mr-2 h-4 w-4" />
-                              Pay Now
+                              <Send className="mr-2 h-4 w-4" />
+                              Send Invoice
                             </>
                           )}
                         </Button>
@@ -424,3 +424,5 @@ export default function BillingPage() {
     </>
   );
 }
+
+    
