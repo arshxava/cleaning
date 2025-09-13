@@ -150,13 +150,23 @@ export default function BillingPage() {
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-headline font-bold">
-          Provider Billing
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage and process payments for your service providers based on completed jobs.
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl md:text-4xl font-headline font-bold">
+            Provider Billing
+            </h1>
+            <p className="text-muted-foreground mt-2">
+            Manage and process payments for your service providers based on completed jobs.
+            </p>
+        </div>
+        {!loading && invoiceRequests.length > 0 && (
+             <div className="relative">
+                <BellRing className="h-6 w-6 text-amber-600 animate-pulse" />
+                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                    {invoiceRequests.length}
+                </span>
+            </div>
+        )}
       </div>
 
       {loading ? (

@@ -16,7 +16,6 @@ import {
   HardHat,
   Briefcase,
   Receipt,
-  ImageIcon,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +34,7 @@ import { useEffect, useState } from 'react';
 import { InvoiceRequest } from '@/lib/types';
 
 type Complaint = {
-  id: string;
+  _id: string;
   status: 'Pending' | 'Resolved';
 }
 
@@ -47,15 +46,11 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { profile } = useSession();
   const [pendingComplaints, setPendingComplaints] = useState(0);
-  const [pendingInvoiceRequests, setPendingInvoiceRequests] = useState(0);
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [complaintsRes, invoiceRequestsRes] = await Promise.all([
-          fetch('/api/complaints'),
-          fetch('/api/invoice-requests?status=pending'),
-        ]);
+        const complaintsRes = await fetch('/api/complaints');
 
         if (complaintsRes.ok) {
           const data: Complaint[] = await complaintsRes.json();
@@ -63,11 +58,6 @@ export default function AdminLayout({
           setPendingComplaints(pendingCount);
         }
         
-        if (invoiceRequestsRes.ok) {
-           const data: InvoiceRequest[] = await invoiceRequestsRes.json();
-           setPendingInvoiceRequests(data.length);
-        }
-
       } catch (error) {
         console.error(error);
       }
@@ -86,7 +76,7 @@ export default function AdminLayout({
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
     { href: '/admin/providers', label: 'Providers', icon: HardHat },
     { href: '/admin/ongoing-services', label: 'Ongoing Services', icon: Briefcase },
-    { href: '/admin/billing', label: 'Billing', icon: Receipt, notification: pendingInvoiceRequests },
+    { href: '/admin/billing', label: 'Billing', icon: Receipt },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
@@ -123,14 +113,6 @@ export default function AdminLayout({
                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
                       {link.badge}
                     </Badge>
-                  )}
-                  {link.notification && link.notification > 0 && (
-                    <div className="relative ml-auto">
-                        <Bell className="h-5 w-5 text-primary" />
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                            {link.notification}
-                        </span>
-                    </div>
                   )}
                 </Link>
               ))}
