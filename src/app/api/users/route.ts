@@ -73,13 +73,11 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
-  console.log("POST /api/users request received.");
   const originalJson = await request.json();
-  const submittedPassword = originalJson.password; // Capture password early
+  const submittedPassword = originalJson.password; 
 
   try {
     const userData = userSchema.parse(originalJson);
-    console.log("User data parsed successfully:", { name: userData.name, email: userData.email, role: userData.role });
 
     const client = await clientPromise;
     const db = client.db();
@@ -87,58 +85,51 @@ export async function POST(request: Request) {
 
     const existing = await usersCollection.findOne({ email: userData.email });
     if (existing) {
-      console.warn("Attempted to create a user with an existing email:", userData.email);
       return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
     }
 
     if (userData.role === 'user') {
-      console.log("Processing 'user' role creation.");
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for standard signup.' }, { status: 400 });
       }
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       await usersCollection.insertOne(dataToInsert);
-      console.log("Successfully created 'user' in database.");
       return NextResponse.json(dataToInsert, { status: 201 });
     }
 
     if (userData.role === 'provider' || userData.role === 'admin') {
-      console.log(`Processing '${userData.role}' role creation.`);
       let firebaseUid: string | undefined = undefined;
       const isAdminSdkEnabled = process.env.FIREBASE_ADMIN_SDK_ENABLED === 'true';
 
       if (isAdminSdkEnabled) {
-        try {
-          if (!admin.apps.length) {
-            console.log("Initializing Firebase Admin SDK...");
-            const serviceAccount = serviceAccountCredentials as admin.ServiceAccount
-            if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
-               admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount)
-               });
-               console.log("Firebase Admin SDK initialized successfully.");
-            } else {
-               console.warn("Placeholder or missing private key in firebase-admin-credentials.ts. Firebase Admin SDK will not be initialized.");
-            }
-          }
+          try {
+              if (!admin.apps.length) {
+                  const serviceAccount = serviceAccountCredentials as admin.ServiceAccount
+                  if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
+                     admin.initializeApp({
+                          credential: admin.credential.cert(serviceAccount)
+                     });
+                  } else {
+                     console.warn("Firebase Admin SDK not initialized: Placeholder or missing private key in firebase-admin-credentials.ts.");
+                  }
+              }
 
-          if (admin.apps.length > 0 && userData.password) {
-            console.log("Creating user in Firebase Auth...");
-            const userRecord = await admin.auth().createUser({
-              email: userData.email,
-              password: userData.password,
-              displayName: userData.name,
-              emailVerified: true,
-            });
-            console.log("Successfully created user in Firebase Auth with UID:", userRecord.uid);
-            firebaseUid = userRecord.uid;
+              if (admin.apps.length > 0 && userData.password) {
+                  const userRecord = await admin.auth().createUser({
+                      email: userData.email,
+                      password: userData.password,
+                      displayName: userData.name,
+                      emailVerified: true,
+                  });
+                  firebaseUid = userRecord.uid;
+              }
+          } catch(e: any) {
+              console.error("Firebase Admin SDK operation failed:", e.message);
+              return NextResponse.json({ message: "Internal Server Error", error: `Firebase Admin SDK Error: ${e.message}` }, { status: 500 });
           }
-        } catch (e: any) {
-          console.error("CRITICAL: Firebase Admin SDK operation failed.", e.message);
-        }
       } else {
-        console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation.");
+        console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation for provider/admin.");
       }
 
       const { password, ...rest } = userData;
@@ -149,11 +140,9 @@ export async function POST(request: Request) {
       };
 
       await usersCollection.insertOne(dataToInsert);
-      console.log("Successfully inserted provider/admin into database.");
-      
-      // Corrected check to send email
+
+      // GUARANTEED EMAIL TRIGGER
       if (submittedPassword && userData.role === 'provider') {
-        console.log("Triggering credential email to provider.");
         await sendProviderCredentialsEmail(userData.email, submittedPassword);
       }
       
