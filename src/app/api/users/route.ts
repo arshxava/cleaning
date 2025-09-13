@@ -21,7 +21,6 @@ const userSchema = z.object({
 type UserData = z.infer<typeof userSchema>;
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
-  console.log(`Preparing to send provider credentials email to ${email}`);
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
 
