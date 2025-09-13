@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export type UserProfile = {
   uid: string;
   name: string;
@@ -72,4 +67,12 @@ export type InvoiceRequest = {
   year: number;
 }
     
-
+export type Payment = {
+  _id: string;
+  providerName: string;
+  bookingIds: string[];
+  amount: number;
+  paymentDate: any;
+  createdAt: any;
+  invoiceRequestId?: string;
+}

@@ -31,12 +31,7 @@ import Header from '@/components/header';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/session-provider';
 import { useEffect, useState } from 'react';
-import { InvoiceRequest } from '@/lib/types';
-
-type Complaint = {
-  _id: string;
-  status: 'Pending' | 'Resolved';
-}
+import { Complaint, InvoiceRequest } from '@/lib/types';
 
 export default function AdminLayout({
   children,
@@ -46,11 +41,15 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { profile } = useSession();
   const [pendingComplaints, setPendingComplaints] = useState(0);
+  const [pendingInvoices, setPendingInvoices] = useState(0);
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const complaintsRes = await fetch('/api/complaints');
+        const [complaintsRes, invoicesRes] = await Promise.all([
+           fetch('/api/complaints'),
+           fetch('/api/invoice-requests?status=pending')
+        ]);
 
         if (complaintsRes.ok) {
           const data: Complaint[] = await complaintsRes.json();
@@ -58,6 +57,11 @@ export default function AdminLayout({
           setPendingComplaints(pendingCount);
         }
         
+        if (invoicesRes.ok) {
+            const data: InvoiceRequest[] = await invoicesRes.json();
+            setPendingInvoices(data.length);
+        }
+
       } catch (error) {
         console.error(error);
       }
@@ -76,7 +80,8 @@ export default function AdminLayout({
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
     { href: '/admin/providers', label: 'Providers', icon: HardHat },
     { href: '/admin/ongoing-services', label: 'Ongoing Services', icon: Briefcase },
-    { href: '/admin/billing', label: 'Billing', icon: Receipt },
+    { href: '/admin/billing', label: 'Billing', icon: Receipt, badge: pendingInvoices },
+    { href: '/admin/payments', label: 'Payments', icon: Users },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
@@ -109,11 +114,11 @@ export default function AdminLayout({
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
-                   {link.badge && link.badge > 0 && (
+                   {link.badge && link.badge > 0 ? (
                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
                       {link.badge}
                     </Badge>
-                  )}
+                  ) : null}
                 </Link>
               ))}
             </nav>

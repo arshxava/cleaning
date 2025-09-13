@@ -38,7 +38,7 @@ type ProviderProfile = UserProfile & { role: 'provider' };
 type ProviderBillingInfo = {
   provider: ProviderProfile;
   totalServiceValue: number;
-  totalCommission: number;
+  totalPayoutDue: number;
   unpaidBookings: Booking[];
   paidBookings: Booking[];
 }
@@ -80,12 +80,12 @@ export default function BillingPage() {
         const totalServiceValue = providerBookings.reduce((sum, b) => sum + b.price, 0);
 
         const commissionPercentage = provider.commissionPercentage || 0;
-        const totalCommission = unpaidBookings.reduce((sum, b) => sum + (b.price * (commissionPercentage / 100)), 0);
+        const totalPayoutDue = unpaidBookings.reduce((sum, b) => sum + (b.price - (b.price * (commissionPercentage / 100))), 0);
 
         return {
           provider,
           totalServiceValue,
-          totalCommission,
+          totalPayoutDue,
           unpaidBookings,
           paidBookings,
         };
@@ -159,16 +159,8 @@ export default function BillingPage() {
             Manage and process payments for your service providers based on completed jobs.
             </p>
         </div>
-        {!loading && invoiceRequests.length > 0 && (
-             <div className="relative">
-                <BellRing className="h-6 w-6 text-amber-600 animate-pulse" />
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                    {invoiceRequests.length}
-                </span>
-            </div>
-        )}
       </div>
-
+      
       {loading ? (
           <Skeleton className="h-32 w-full" />
       ) : invoiceRequests.length > 0 && (
@@ -222,8 +214,8 @@ export default function BillingPage() {
                             Commission Rate: {info.provider.commissionPercentage || 0}%
                         </CardDescription>
                     </div>
-                    <Badge variant={info.totalCommission > 0 ? 'destructive' : 'secondary'}>
-                        {info.totalCommission > 0 ? "Payment Due" : "Up to Date"}
+                    <Badge variant={info.totalPayoutDue > 0 ? 'destructive' : 'secondary'}>
+                        {info.totalPayoutDue > 0 ? "Payment Due" : "Up to Date"}
                     </Badge>
                 </div>
               </CardHeader>
@@ -235,7 +227,7 @@ export default function BillingPage() {
                             <TableHead>Service</TableHead>
                             <TableHead>Client</TableHead>
                             <TableHead className="text-right">Service Value</TableHead>
-                            <TableHead className="text-right">Commission</TableHead>
+                            <TableHead className="text-right">Provider Earning</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -245,7 +237,7 @@ export default function BillingPage() {
                                 <TableCell>{booking.service}</TableCell>
                                 <TableCell>{booking.userName}</TableCell>
                                 <TableCell className="text-right">${booking.price.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${(booking.price * ((info.provider.commissionPercentage || 0) / 100)).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">${(booking.price - (booking.price * ((info.provider.commissionPercentage || 0) / 100))).toFixed(2)}</TableCell>
                             </TableRow>
                         )) : (
                             <TableRow>
@@ -260,12 +252,12 @@ export default function BillingPage() {
                 <div className="flex items-center gap-6">
                     <div className="text-right">
                         <p className="text-sm text-muted-foreground">Total Payout Due</p>
-                        <p className="text-2xl font-bold">${info.totalCommission.toFixed(2)}</p>
+                        <p className="text-2xl font-bold">${info.totalPayoutDue.toFixed(2)}</p>
                     </div>
                     <Button 
                         size="lg" 
-                        onClick={() => handlePayProvider(info.provider.name, info.unpaidBookings.map(b => b._id), info.totalCommission)}
-                        disabled={info.totalCommission === 0 || payingProvider !== null}
+                        onClick={() => handlePayProvider(info.provider.name, info.unpaidBookings.map(b => b._id), info.totalPayoutDue)}
+                        disabled={info.totalPayoutDue === 0 || payingProvider !== null}
                     >
                       {payingProvider === info.provider.name ? (
                         <>

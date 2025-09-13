@@ -2,24 +2,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/components/session-provider';
 import { BookingCard } from '@/components/booking-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquareWarning, Wrench, FileText, Loader2 } from 'lucide-react';
+import { MessageSquareWarning, Wrench, FileText, Loader2, Download } from 'lucide-react';
 import { ProviderComplaintCard } from '@/components/provider-complaint-card';
-import { Booking } from '@/lib/types';
+import { Booking, Payment } from '@/lib/types';
 import type { Complaint } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 export default function ProviderDashboardPage() {
   const { profile } = useSession();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRequestingInvoice, setIsRequestingInvoice] = useState(false);
 
@@ -27,20 +37,26 @@ export default function ProviderDashboardPage() {
     if (!profile) return;
     setLoading(true);
     try {
-        const [bookingsRes, complaintsRes] = await Promise.all([
+        const [bookingsRes, complaintsRes, paymentsRes] = await Promise.all([
             fetch('/api/bookings'),
             fetch('/api/complaints'),
+            fetch('/api/payments'),
         ]);
 
         if (bookingsRes.ok) {
             const allBookings = await bookingsRes.json();
-            setBookings(allBookings.filter((b: Booking) => b.provider === profile.name));
+            setBookings(allBookings); // Keep all bookings for invoice generation
         }
 
         if (complaintsRes.ok) {
             const allComplaints: Complaint[] = await complaintsRes.json();
             const providerComplaints = allComplaints.filter((c) => c.provider === profile.name);
             setComplaints(providerComplaints);
+        }
+        
+        if (paymentsRes.ok) {
+            const allPayments: Payment[] = await paymentsRes.json();
+            setPayments(allPayments.filter(p => p.providerName === profile.name));
         }
 
     } catch (error) {
@@ -85,7 +101,39 @@ export default function ProviderDashboardPage() {
     }
   };
 
+  const generateInvoice = (payment: Payment) => {
+    const doc = new jsPDF();
+    
+    const paymentBookings = bookings.filter(b => payment.bookingIds.includes(b._id));
 
+    doc.setFontSize(22);
+    doc.text('Payment Invoice', 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Provider: ${payment.providerName}`, 14, 32);
+    doc.text(`Payment Date: ${new Date(payment.paymentDate).toLocaleDateString()}`, 14, 38);
+    doc.text(`Payment ID: ${payment._id}`, 14, 44);
+
+    doc.autoTable({
+        startY: 50,
+        head: [['Booking Date', 'Service', 'Client', 'Service Price']],
+        body: paymentBookings.map(b => [
+            new Date(b.date).toLocaleDateString('en-CA'),
+            b.service,
+            b.userName,
+            `$${b.price.toFixed(2)}`
+        ]),
+        foot: [['', '', 'Total Payout', `$${payment.amount.toFixed(2)}`]],
+        footStyles: {
+            fontStyle: 'bold',
+            fillColor: [230, 230, 230]
+        }
+    });
+
+    doc.save(`invoice-${payment.providerName}-${new Date(payment.paymentDate).toISOString().split('T')[0]}.pdf`);
+  };
+
+
+  const providerBookings = bookings.filter(b => b.provider === profile?.name);
   const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
 
   if (!profile) {
@@ -154,10 +202,10 @@ export default function ProviderDashboardPage() {
                 <div key={status} className="space-y-4 p-4 bg-muted/50 rounded-lg h-full">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                     {status}
-                    <Badge variant="secondary" className="h-6">{bookings.filter(b => b.status === status).length}</Badge>
+                    <Badge variant="secondary" className="h-6">{providerBookings.filter(b => b.status === status).length}</Badge>
                     </h2>
                     <div className="space-y-4">
-                    {bookings
+                    {providerBookings
                         .filter(b => b.status === status)
                         .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                         .map(booking => (
@@ -169,7 +217,7 @@ export default function ProviderDashboardPage() {
                             onUpdate={handleUpdate} 
                         />
                     ))}
-                    {bookings.filter(b => b.status === status).length === 0 && (
+                    {providerBookings.filter(b => b.status === status).length === 0 && (
                         <p className="text-sm text-muted-foreground text-center py-4">No jobs in this stage.</p>
                     )}
                     </div>
@@ -194,16 +242,16 @@ export default function ProviderDashboardPage() {
             </div>
         </TabsContent>
         <TabsContent value="billing" className="mt-8">
-             <div className="max-w-md mx-auto">
+             <div className="max-w-4xl mx-auto space-y-8">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Monthly Invoice</CardTitle>
+                        <CardTitle>Request Invoice</CardTitle>
                         <CardDescription>
                             When you are ready to receive payment for all completed services for the current month, you can notify the admin.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button className="w-full" size="lg" onClick={handleRequestInvoice} disabled={isRequestingInvoice}>
+                        <Button className="w-full sm:w-auto" size="lg" onClick={handleRequestInvoice} disabled={isRequestingInvoice}>
                            {isRequestingInvoice ? (
                              <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
@@ -211,6 +259,54 @@ export default function ProviderDashboardPage() {
                              </>
                            ) : "Request Monthly Invoice"}
                         </Button>
+                    </CardContent>
+                 </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Payment History</CardTitle>
+                        <CardDescription>
+                            A history of all payments you have received.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loading ? (
+                            <Skeleton className="w-full h-32" />
+                        ) : (
+                           <Table>
+                               <TableHeader>
+                                   <TableRow>
+                                       <TableHead>Date</TableHead>
+                                       <TableHead># Services</TableHead>
+                                       <TableHead className="text-right">Amount</TableHead>
+                                       <TableHead className="text-center">Invoice</TableHead>
+                                   </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                   {payments.length > 0 ? (
+                                       payments.map(payment => (
+                                           <TableRow key={payment._id}>
+                                               <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                                               <TableCell>{payment.bookingIds.length}</TableCell>
+                                               <TableCell className="text-right font-medium">${payment.amount.toFixed(2)}</TableCell>
+                                               <TableCell className="text-center">
+                                                   <Button variant="ghost" size="sm" onClick={() => generateInvoice(payment)}>
+                                                      <Download className="mr-2 h-4 w-4" />
+                                                      Download
+                                                   </Button>
+                                               </TableCell>
+                                           </TableRow>
+                                       ))
+                                   ) : (
+                                       <TableRow>
+                                           <TableCell colSpan={4} className="h-24 text-center">
+                                               You have not received any payments yet.
+                                           </TableCell>
+                                       </TableRow>
+                                   )}
+                               </TableBody>
+                           </Table>
+                        )}
                     </CardContent>
                  </Card>
              </div>
