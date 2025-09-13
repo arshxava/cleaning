@@ -67,7 +67,7 @@ export default function SignInPage() {
 
       toast({
         title: 'Signed In Successfully!',
-        description: `Welcome back, ${profile.name}! You're now logged in.`,
+        description: `Welcome, ${profile.name}! You're now logged in.`,
       });
 
       if (profile?.role === 'admin') {

@@ -107,8 +107,7 @@ export default function AdminLayout({
                   href={link.href}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    pathname === link.href && "bg-muted text-primary",
-                    link.disabled && "pointer-events-none opacity-50"
+                    pathname === link.href && "bg-muted text-primary"
                   )}
                 >
                   <link.icon className="h-4 w-4" />
@@ -121,21 +120,6 @@ export default function AdminLayout({
                 </Link>
               ))}
             </nav>
-          </div>
-          <div className="mt-auto p-4">
-            <Card>
-              <CardHeader className="p-2 pt-0 md:p-4">
-                <CardTitle>Need Help?</CardTitle>
-                <CardDescription>
-                  Contact support for any questions or issues.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-2 pt-0 md:p-4 md:pt-0">
-                <Button size="sm" className="w-full">
-                  Contact Support
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
