@@ -18,6 +18,7 @@ const providerSchema = z.object({
 
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
+  console.log("Sending email to:", email)
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
 
@@ -53,6 +54,7 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
     console.error("Fetch call to /api/send-email failed:", error);
   }
 }
+
 
 export async function GET() {
   try {
