@@ -13,7 +13,7 @@ import {
   MessageSquare,
   Lock
 } from 'lucide-react';
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
+import { sendEmailVerification, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -98,62 +98,37 @@ export default function SignUpPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // Step 1: Save user data to our database first.
-      // We send the password here to check for existing users on the backend,
-      // but it won't be saved in the database for 'user' roles.
-      const dbResponse = await fetch('/api/users', {
+      // The backend will now handle both Firebase and DB user creation.
+      const response = await fetch('/api/users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...values,
-          role: 'user',
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...values, role: 'user' }),
       });
 
-      if (!dbResponse.ok) {
-        const errorData = await dbResponse.json();
-        // If the user already exists in our DB, we can short-circuit.
-        if (dbResponse.status === 409) {
-           form.setError("email", { type: "manual", message: "This email is already in use." });
-           throw new Error(errorData.message || 'This email is already registered.');
-        }
-        throw new Error(errorData.message || 'Failed to save user profile.');
-      }
-
-      const { uid } = await dbResponse.json();
-
-      if (!uid) {
-         throw new Error("User creation in DB failed to return a UID.");
-      }
-
-      // Step 2: Create user in Firebase Auth.
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      // This is a safety check. The UID from Firebase should match the one we expect.
-      // In a real app, you might have reconciliation logic here if they don't match.
-      if (user.uid !== uid) {
-          console.warn("Firebase UID and backend UID mismatch.");
-          // For now, we'll proceed, but this indicates a potential issue.
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create account.');
       }
       
-      // Step 3. Update Firebase profile and send verification.
-      await updateProfile(user, { displayName: values.name });
-      await sendEmailVerification(user);
-
-      toast({
-        title: 'Account Created!',
-        description: 'A verification email has been sent. Please verify your email to log in.',
-      });
-      router.push('/sign-in');
+      // After successful backend creation, log the user in to get a session
+      // and then send the verification email from the client.
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      if (userCredential.user) {
+         await sendEmailVerification(userCredential.user);
+         toast({
+            title: 'Account Created!',
+            description: 'A verification email has been sent. Please verify your email to log in.',
+         });
+         router.push('/sign-in');
+      } else {
+         throw new Error("Login after signup failed.");
+      }
 
     } catch (error: any) {
       console.error("Sign up error:", error);
       let description = "An unexpected error occurred. Please try again.";
       
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.message.includes('already exists')) {
         description = "This email is already in use. Please try signing in.";
         form.setError("email", { type: "manual", message: "This email is already taken." });
       } else {
