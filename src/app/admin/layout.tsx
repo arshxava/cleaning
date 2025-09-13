@@ -16,6 +16,7 @@ import {
   HardHat,
   Briefcase,
   Receipt,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +71,7 @@ export default function AdminLayout({
     { href: '/admin/providers', label: 'Providers', icon: HardHat },
     { href: '/admin/ongoing-services', label: 'Ongoing Services', icon: Briefcase },
     { href: '/admin/billing', label: 'Billing', icon: Receipt },
+    { href: '/admin/gallery', label: 'Gallery', icon: ImageIcon },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
