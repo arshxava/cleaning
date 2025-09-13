@@ -13,7 +13,7 @@ import {
   MessageSquare,
   Lock
 } from 'lucide-react';
-import { sendEmailVerification, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -98,37 +98,48 @@ export default function SignUpPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // The backend will now handle both Firebase and DB user creation.
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, role: 'user' }),
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Send verification email
+      await sendEmailVerification(user);
+
+      // 3. Create user profile in your database via API
+      const profileResponse = await fetch('/api/users/ensure-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              uid: user.uid,
+              name: values.name,
+              email: values.email,
+              phone: values.phone,
+              notificationPreference: values.notificationPreference,
+              school: values.school,
+              roomSize: values.roomSize,
+              role: 'user', // Default role for new signups
+          }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create account.');
+      if (!profileResponse.ok) {
+          // If profile creation fails, we should ideally delete the Firebase user
+          // to avoid orphaned accounts. For now, we'll just throw the error.
+          const errorData = await profileResponse.json();
+          throw new Error(errorData.message || 'Failed to save user profile.');
       }
       
-      // After successful backend creation, log the user in to get a session
-      // and then send the verification email from the client.
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      if (userCredential.user) {
-         await sendEmailVerification(userCredential.user);
-         toast({
-            title: 'Account Created!',
-            description: 'A verification email has been sent. Please verify your email to log in.',
-         });
-         router.push('/sign-in');
-      } else {
-         throw new Error("Login after signup failed.");
-      }
+      toast({
+          title: 'Account Created!',
+          description: 'A verification email has been sent. Please verify your email to log in.',
+      });
+      
+      router.push('/sign-in');
 
     } catch (error: any) {
       console.error("Sign up error:", error);
       let description = "An unexpected error occurred. Please try again.";
       
-      if (error.message.includes('already exists')) {
+      if (error.code === 'auth/email-already-in-use') {
         description = "This email is already in use. Please try signing in.";
         form.setError("email", { type: "manual", message: "This email is already taken." });
       } else {

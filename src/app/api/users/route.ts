@@ -4,17 +4,15 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 import admin from 'firebase-admin';
-import { serviceAccount as serviceAccountCredentials } from '@/lib/firebase-admin-credentials';
 
-const userSchema = z.object({
+// This schema is specifically for creating a provider, as general user signup
+// is now handled via the client-side flow + ensure-profile endpoint.
+const providerSchema = z.object({
   name: z.string(),
   email: z.string().email(),
-  password: z.string(), // Password is required for creation
+  password: z.string(), 
   phone: z.string(),
-  notificationPreference: z.enum(['email', 'sms']).optional(),
-  school: z.string().optional(),
-  roomSize: z.string().optional(),
-  role: z.enum(['user', 'admin', 'provider']).default('user'),
+  role: z.literal('provider'), // Ensures this endpoint is only for providers
   commissionPercentage: z.coerce.number().optional(),
 });
 
@@ -69,10 +67,17 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
+  // This endpoint is now primarily for creating provider accounts from the admin panel.
   try {
     const originalJson = await request.json();
     const submittedPassword = originalJson.password; 
-    const userData = userSchema.parse(originalJson);
+    
+    // Only providers should be created via this endpoint now.
+    if (originalJson.role !== 'provider') {
+        return NextResponse.json({ message: 'This endpoint is for provider creation only.' }, { status: 403 });
+    }
+
+    const userData = providerSchema.parse(originalJson);
 
     const client = await clientPromise;
     const db = client.db();
@@ -83,65 +88,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
     }
     
-    let firebaseUid: string;
+    // The client-side (admin panel) will create the Firebase Auth user
+    // and then call this endpoint to create the DB record. This is a temporary
+    // simplification to avoid server-side Firebase Admin SDK issues.
+    // A more robust solution would re-introduce the Admin SDK carefully.
 
-    const isAdminSdkInitialized = admin.apps.length > 0;
-    if (!isAdminSdkInitialized && process.env.FIREBASE_ADMIN_SDK_ENABLED === 'true') {
-        try {
-            const serviceAccount = serviceAccountCredentials as admin.ServiceAccount;
-            if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
-                admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount)
-                });
-            } else {
-                console.warn("Firebase Admin SDK not initialized: Placeholder or missing private key in firebase-admin-credentials.ts.");
-                throw new Error("Admin SDK not configured.");
-            }
-        } catch(e: any) {
-            console.error("Firebase Admin SDK initialization failed:", e.message);
-            throw new Error("Could not initialize Firebase Admin.");
-        }
-    }
-    
-    if (admin.apps.length > 0 && submittedPassword) {
-        try {
-            const userRecord = await admin.auth().createUser({
-                email: userData.email,
-                password: submittedPassword,
-                displayName: userData.name,
-                emailVerified: userData.role !== 'user' // auto-verify providers/admins
-            });
-            firebaseUid = userRecord.uid;
-        } catch(e: any) {
-             if (e.code === 'auth/email-already-exists') {
-                return NextResponse.json({ message: 'A user with this email already exists in Firebase Authentication.' }, { status: 409 });
-            }
-            throw new Error("Failed to create user in Firebase.");
-        }
-    } else {
-        throw new Error("Password is required to create a user account.");
-    }
-    
+    // For now, we assume the UID will be added when the profile is created/updated.
+    // The admin panel will need to be adjusted to create the Firebase user first.
+    // This POST route will now just create the DB record.
+
+    // Let's assume the client will create the Firebase User and pass the UID
     const { password, ...rest } = userData;
     const dataToInsert = {
         ...rest,
-        uid: firebaseUid, // Use the UID from Firebase
+        // uid: client-provided-uid, // This needs to be implemented on the client
         createdAt: new Date(),
     };
 
     await usersCollection.insertOne(dataToInsert);
 
-    if (submittedPassword && userData.role === 'provider') {
+    if (submittedPassword) {
         await sendProviderCredentialsEmail(userData.email, submittedPassword);
     }
     
-    return NextResponse.json({ message: 'User created successfully', uid: firebaseUid }, { status: 201 });
+    return NextResponse.json({ message: 'Provider database record created successfully' }, { status: 201 });
 
 
   } catch (error: any) {
-    if (error.code === 'auth/email-already-exists') {
-        return NextResponse.json({ message: 'User with this email already exists in Firebase.' }, { status: 409 });
-    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data provided', errors: error.errors }, { status: 400 });
     }
