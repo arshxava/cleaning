@@ -115,10 +115,10 @@ export async function POST(request: Request) {
                   }
               }
 
-              if (admin.apps.length > 0 && userData.password) {
+              if (admin.apps.length > 0 && submittedPassword) {
                   const userRecord = await admin.auth().createUser({
                       email: userData.email,
-                      password: userData.password,
+                      password: submittedPassword,
                       displayName: userData.name,
                       emailVerified: true,
                   });
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
               }
           } catch(e: any) {
               console.error("Firebase Admin SDK operation failed:", e.message);
-              return NextResponse.json({ message: "Internal Server Error", error: `Firebase Admin SDK Error: ${e.message}` }, { status: 500 });
+              // Do not re-throw, allow user to be created in DB regardless
           }
       } else {
         console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation for provider/admin.");
