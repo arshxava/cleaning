@@ -39,6 +39,7 @@ const ensureUserProfile = async (user: User): Promise<UserProfile | null> => {
       const profileData = await response.json();
       return profileData;
     }
+    console.error("ensureUserProfile failed with status:", response.status, await response.text());
     return null;
   } catch (error) {
     console.error('Failed to ensure user profile:', error);
@@ -57,6 +58,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Effect 1: Listen for Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true); // Set loading to true whenever user state changes
       setUser(firebaseUser);
       if (!firebaseUser) {
         setProfile(null);
@@ -70,7 +72,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchAndEnsureProfile = async () => {
       if (user) {
-        setLoading(true);
         try {
           const response = await fetch(`/api/users/${user.uid}`);
           if (response.ok) {
@@ -97,6 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
            setLoading(false);
         }
       }
+      // No user, no profile to fetch.
     };
     
     fetchAndEnsureProfile();
@@ -129,7 +131,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         router.push('/dashboard'); 
       } else if (pathIsProvider && profile.role !== 'provider') {
         router.push('/dashboard');
-      } else if (pathname.startsWith('/dashboard') && profile.role !== 'user') {
+      } else if (!pathIsAdmin && !pathIsProvider && profile.role !== 'user') {
+        // if user is not on an admin/provider page but their role is admin/provider, redirect them
         if (profile.role === 'admin') router.push('/admin/complaints');
         else if (profile.role === 'provider') router.push('/provider/dashboard');
       }

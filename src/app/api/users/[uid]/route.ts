@@ -5,6 +5,9 @@ import { z } from 'zod';
 const updateUserSchema = z.object({
   name: z.string().min(2).optional(),
   phone: z.string().min(10).optional(),
+  notificationPreference: z.enum(['email', 'sms']).optional(),
+  school: z.string().optional(),
+  roomSize: z.string().optional(),
 });
 
 export async function GET(
