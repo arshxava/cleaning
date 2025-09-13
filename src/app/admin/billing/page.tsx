@@ -163,15 +163,36 @@ export default function BillingPage() {
 
   const handleGenerateInvoice = (info: ProviderBillingInfo) => {
     const doc = new jsPDF();
+    const invoiceDate = new Date();
+    const invoiceId = `INV-${info.provider.uid.slice(-4)}-${invoiceDate.getTime()}`;
+
+    // --- Header ---
+    doc.setFontSize(26);
+    doc.setFont('helvetica', 'bold');
+    doc.text('A+ Cleaning Solutions', 14, 22);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Your Company Address, City, Postal Code', 14, 30);
+    doc.text('contact@apluscleaning.com', 14, 35);
     
-    doc.setFontSize(22);
-    doc.text('Payout Invoice', 14, 22);
+    // --- Billed To and From ---
     doc.setFontSize(12);
-    doc.text(`Provider: ${info.provider.name}`, 14, 32);
-    doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`, 14, 38);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Billed To:', 14, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.text(info.provider.name, 14, 56);
+    doc.text(info.provider.email, 14, 62);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Invoice Details:', 140, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Invoice #: ${invoiceId}`, 140, 56);
+    doc.text(`Date: ${invoiceDate.toLocaleDateString()}`, 140, 62);
     
+    // --- Table of Services ---
     doc.autoTable({
-        startY: 50,
+        startY: 75,
         head: [['Booking Date', 'Service', 'Client', 'Service Price', 'Provider Earning']],
         body: info.unpaidBookings.map(b => {
             const earning = b.price - (b.price * ((info.provider.commissionPercentage || 0) / 100));
@@ -183,14 +204,26 @@ export default function BillingPage() {
                 `$${earning.toFixed(2)}`
             ];
         }),
-        foot: [['', '', '', 'Total Payout Due', `$${info.totalPayoutDue.toFixed(2)}`]],
+        theme: 'striped',
+        headStyles: { fillColor: [38, 117, 101] }, // Primary color
         footStyles: {
             fontStyle: 'bold',
-            fillColor: [230, 230, 230]
-        }
+            fillColor: [244, 244, 245], // Muted color
+            textColor: [10, 10, 10]
+        },
+        foot: [
+          ['', '', '', { content: 'Total Payout Due:', styles: { halign: 'right' } }, { content: `$${info.totalPayoutDue.toFixed(2)}`, styles: { halign: 'right' } }]
+        ]
     });
+    
+    // --- Footer ---
+    const finalY = (doc as any).lastAutoTable.finalY;
+    doc.setFontSize(10);
+    doc.text('Thank you for your partnership!', 14, finalY + 20);
+    doc.text('Payment will be processed within 5-7 business days.', 14, finalY + 25);
 
-    doc.save(`invoice-${info.provider.name}-${new Date().toISOString().split('T')[0]}.pdf`);
+
+    doc.save(`invoice-${info.provider.name}-${invoiceDate.toISOString().split('T')[0]}.pdf`);
     toast({ title: "Invoice Generated", description: `PDF invoice for ${info.provider.name} has been downloaded.` });
   }
 
@@ -391,5 +424,3 @@ export default function BillingPage() {
     </>
   );
 }
-
-    
