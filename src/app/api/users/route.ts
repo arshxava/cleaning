@@ -2,8 +2,8 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import admin from 'firebase-admin';
+import { serviceAccount } from '@/lib/firebase-admin-credentials';
 
 const userSchema = z.object({
   uid: z.string().optional(),
@@ -19,6 +19,7 @@ const userSchema = z.object({
 });
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
+  console.log(`Preparing to send provider credentials email to ${email}`);
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
 
@@ -47,12 +48,12 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
     });
 
     if (!response.ok) {
-      console.error("Failed to send provider credential email:", await response.text());
+      console.error("API call to /api/send-email failed:", await response.text());
     } else {
-        console.log("Provider credential email sent successfully to:", email);
+        console.log("Provider credential email sent successfully via API call to:", email);
     }
   } catch (error) {
-    console.error("Error sending provider credential email:", error);
+    console.error("Fetch call to /api/send-email failed:", error);
   }
 }
 
@@ -69,9 +70,11 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
+  console.log("POST /api/users request received.");
   try {
     const json = await request.json();
     const userData = userSchema.parse(json);
+    console.log("User data parsed successfully:", { name: userData.name, email: userData.email, role: userData.role });
 
     const client = await clientPromise;
     const db = client.db();
@@ -79,39 +82,50 @@ export async function POST(request: Request) {
 
     const existing = await usersCollection.findOne({ email: userData.email });
     if (existing) {
+      console.warn("Attempted to create a user with an existing email:", userData.email);
       return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
     }
 
     if (userData.role === 'user') {
+      console.log("Processing 'user' role creation.");
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for standard signup.' }, { status: 400 });
       }
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       await usersCollection.insertOne(dataToInsert);
+      console.log("Successfully created 'user' in database.");
       return NextResponse.json(dataToInsert, { status: 201 });
     }
 
     if (userData.role === 'provider' || userData.role === 'admin') {
-      let app: App;
-      if (!getApps().length) {
-        // Using Application Default Credentials
-        app = initializeApp();
-      } else {
-        app = getApps()[0];
+      console.log(`Processing '${userData.role}' role creation.`);
+
+      if (!admin.apps.length) {
+          console.log("Initializing Firebase Admin SDK...");
+          try {
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount)
+            });
+            console.log("Firebase Admin SDK initialized successfully.");
+          } catch (e: any) {
+              console.error("CRITICAL: Failed to initialize Firebase Admin SDK:", e.message);
+              return NextResponse.json({ message: 'Internal Server Error', error: 'Could not initialize admin services. ' + e.message }, { status: 500 });
+          }
       }
 
       if (!userData.password) {
         return NextResponse.json({ message: 'Password is required to create a provider/admin account.' }, { status: 400 });
       }
 
-      const auth = getAuth(app);
-      const userRecord = await auth.createUser({
+      console.log("Creating user in Firebase Auth...");
+      const userRecord = await admin.auth().createUser({
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
         emailVerified: true, 
       });
+      console.log("Successfully created user in Firebase Auth with UID:", userRecord.uid);
       
       const { password, ...rest } = userData;
       const dataToInsert = {
@@ -121,8 +135,10 @@ export async function POST(request: Request) {
       };
 
       await usersCollection.insertOne(dataToInsert);
+      console.log("Successfully inserted provider/admin into database.");
 
       if (userData.role === 'provider') {
+        console.log("Sending credential email to provider.");
         await sendProviderCredentialsEmail(userData.email, userData.password);
       }
       
