@@ -73,10 +73,11 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
-  const originalJson = await request.json();
-  const submittedPassword = originalJson.password; 
-
+  let submittedPassword;
   try {
+    const originalJson = await request.json();
+    submittedPassword = originalJson.password; // Capture password from the single read
+
     const userData = userSchema.parse(originalJson);
 
     const client = await clientPromise;
@@ -102,34 +103,43 @@ export async function POST(request: Request) {
       let firebaseUid: string | undefined = undefined;
       const isAdminSdkEnabled = process.env.FIREBASE_ADMIN_SDK_ENABLED === 'true';
 
-      if (isAdminSdkEnabled) {
-          try {
-              if (!admin.apps.length) {
-                  const serviceAccount = serviceAccountCredentials as admin.ServiceAccount
-                  if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
-                     admin.initializeApp({
-                          credential: admin.credential.cert(serviceAccount)
-                     });
-                  } else {
-                     console.warn("Firebase Admin SDK not initialized: Placeholder or missing private key in firebase-admin-credentials.ts.");
-                  }
-              }
+      if (isAdminSdkEnabled && admin.apps.length > 0 && submittedPassword) {
+        try {
+          const userRecord = await admin.auth().createUser({
+              email: userData.email,
+              password: submittedPassword,
+              displayName: userData.name,
+              emailVerified: true,
+          });
+          firebaseUid = userRecord.uid;
+        } catch(e: any) {
+            console.error("Firebase Admin SDK operation failed:", e.message);
+        }
+      }
 
-              if (admin.apps.length > 0 && submittedPassword) {
-                  const userRecord = await admin.auth().createUser({
-                      email: userData.email,
-                      password: submittedPassword,
-                      displayName: userData.name,
-                      emailVerified: true,
-                  });
-                  firebaseUid = userRecord.uid;
-              }
-          } catch(e: any) {
-              console.error("Firebase Admin SDK operation failed:", e.message);
-              // Do not re-throw, allow user to be created in DB regardless
+      if (isAdminSdkEnabled && admin.apps.length === 0) {
+        try {
+          const serviceAccount = serviceAccountCredentials as admin.ServiceAccount;
+          if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
+             admin.initializeApp({
+                  credential: admin.credential.cert(serviceAccount)
+             });
+          } else {
+             console.warn("Firebase Admin SDK not initialized: Placeholder or missing private key in firebase-admin-credentials.ts.");
           }
-      } else {
-        console.warn("FIREBASE_ADMIN_SDK_ENABLED is not 'true'. Skipping Firebase Auth user creation for provider/admin.");
+
+          if (admin.apps.length > 0 && submittedPassword) {
+              const userRecord = await admin.auth().createUser({
+                  email: userData.email,
+                  password: submittedPassword,
+                  displayName: userData.name,
+                  emailVerified: true,
+              });
+              firebaseUid = userRecord.uid;
+          }
+        } catch(e: any) {
+            console.error("Firebase Admin SDK initialization or user creation failed:", e.message);
+        }
       }
 
       const { password, ...rest } = userData;
