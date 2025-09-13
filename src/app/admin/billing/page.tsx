@@ -201,8 +201,8 @@ export default function BillingPage() {
         </div>
       ) : billingData.length > 0 ? (
         <div className="grid gap-8">
-          {billingData.map(info => (
-            <Card key={info.provider.uid}>
+          {billingData.map((info, index) => (
+            <Card key={`${info.provider.uid}-${index}`}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
