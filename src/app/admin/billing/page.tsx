@@ -7,7 +7,7 @@ import {
   Users,
   Loader2,
   BellRing,
-  CheckCircle,
+  FileText,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, Booking, InvoiceRequest } from '@/lib/types';
@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 
 type ProviderProfile = UserProfile & { role: 'provider' };
@@ -51,6 +52,7 @@ export default function BillingPage() {
   const [invoiceRequests, setInvoiceRequests] = useState<InvoiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingProvider, setPayingProvider] = useState<string | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState<ProviderBillingInfo | null>(null);
 
   const fetchBillingData = async () => {
     try {
@@ -179,12 +181,12 @@ export default function BillingPage() {
             }
         }
 
-
         toast({
             title: "Payment Successful",
             description: `${providerName} has been paid $${amount.toFixed(2)}.`,
         });
         
+        setIsPreviewing(null);
         fetchBillingData(); // Refresh data
      } catch (error) {
          toast({
@@ -205,12 +207,12 @@ export default function BillingPage() {
                 <h1 className="text-3xl md:text-4xl font-headline font-bold">
                     Provider Billing
                 </h1>
-                <div className="relative">
-                    <BellRing className="h-6 w-6 text-muted-foreground" />
-                    {invoiceRequests.length > 0 && (
-                         <Badge variant="destructive" className="absolute -top-2 -right-3 h-5 w-5 justify-center p-0">{invoiceRequests.length}</Badge>
-                    )}
-                </div>
+                {invoiceRequests.length > 0 && (
+                    <div className="relative">
+                        <BellRing className="h-6 w-6 text-muted-foreground" />
+                        <Badge variant="destructive" className="absolute -top-2 -right-3 h-5 w-5 justify-center p-0">{invoiceRequests.length}</Badge>
+                    </div>
+                )}
             </div>
             <div>{/* Potentially add actions here */}</div>
         </div>
@@ -311,20 +313,11 @@ export default function BillingPage() {
                     </div>
                     <Button 
                         size="lg" 
-                        onClick={() => handlePayProvider(info.provider.name, info.unpaidBookings.map(b => b._id), info.totalPayoutDue)}
+                        onClick={() => setIsPreviewing(info)}
                         disabled={info.totalPayoutDue === 0 || payingProvider !== null}
                     >
-                      {payingProvider === info.provider.name ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign className="mr-2 h-4 w-4" />
-                          Pay Provider
-                        </>
-                      )}
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate &amp; Preview Invoice
                     </Button>
                 </div>
               </CardFooter>
@@ -338,6 +331,64 @@ export default function BillingPage() {
             </CardContent>
         </Card>
       )}
+
+      {isPreviewing && (
+        <Dialog open={!!isPreviewing} onOpenChange={() => setIsPreviewing(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Invoice for {isPreviewing.provider.name}</DialogTitle>
+                    <DialogDescription>
+                        Review the details below before sending payment for the current period.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto p-1">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Booking Date</TableHead>
+                                <TableHead>Service</TableHead>
+                                <TableHead className="text-right">Earning</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isPreviewing.unpaidBookings.map(booking => (
+                                <TableRow key={booking._id}>
+                                    <TableCell>{new Date(booking.date).toLocaleDateString('en-CA')}</TableCell>
+                                    <TableCell>{booking.service} - {booking.userName}</TableCell>
+                                    <TableCell className="text-right">${(booking.price - (booking.price * ((isPreviewing.provider.commissionPercentage || 0) / 100))).toFixed(2)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <Separator />
+                 <div className="flex justify-end items-center gap-4 pt-4">
+                     <p className="text-muted-foreground">Total Payout:</p>
+                     <p className="text-2xl font-bold">${isPreviewing.totalPayoutDue.toFixed(2)}</p>
+                 </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsPreviewing(null)}>Cancel</Button>
+                    <Button 
+                        onClick={() => handlePayProvider(isPreviewing.provider.name, isPreviewing.unpaidBookings.map(b => b._id), isPreviewing.totalPayoutDue)}
+                        disabled={payingProvider !== null}
+                    >
+                      {payingProvider === isPreviewing.provider.name ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          Send &amp; Pay
+                        </>
+                      )}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
+
