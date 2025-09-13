@@ -3,6 +3,7 @@
 
 
 
+
 export type UserProfile = {
   uid: string;
   name: string;
@@ -61,5 +62,14 @@ export type Complaint = {
   lastResponseTimestamp?: any;
 };
     
-
+export type InvoiceRequest = {
+  _id: string;
+  providerId: string;
+  providerName: string;
+  requestDate: any;
+  status: 'pending' | 'paid';
+  month: number;
+  year: number;
+}
     
+

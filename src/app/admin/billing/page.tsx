@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import {
   DollarSign,
   Users,
-  Loader2
+  Loader2,
+  BellRing,
+  CheckCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { UserProfile, Booking } from '@/lib/types';
+import type { UserProfile, Booking, InvoiceRequest } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -44,15 +46,17 @@ type ProviderBillingInfo = {
 export default function BillingPage() {
   const { toast } = useToast();
   const [billingData, setBillingData] = useState<ProviderBillingInfo[]>([]);
+  const [invoiceRequests, setInvoiceRequests] = useState<InvoiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingProvider, setPayingProvider] = useState<string | null>(null);
 
   const fetchBillingData = async () => {
     try {
       setLoading(true);
-      const [providersRes, bookingsRes] = await Promise.all([
+      const [providersRes, bookingsRes, requestsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/bookings'),
+        fetch('/api/invoice-requests?status=pending'),
       ]);
 
       if (!providersRes.ok) throw new Error('Failed to fetch providers');
@@ -63,6 +67,10 @@ export default function BillingPage() {
       const allBookings: Booking[] = await bookingsRes.json();
       const completedBookings = allBookings.filter(b => b.status === 'Completed');
       
+      if (!requestsRes.ok) throw new Error('Failed to fetch invoice requests');
+      const requestsData: InvoiceRequest[] = await requestsRes.json();
+      setInvoiceRequests(requestsData);
+
       const data: ProviderBillingInfo[] = providers.map(provider => {
         const providerBookings = completedBookings.filter(b => b.provider === provider.name);
         
@@ -104,6 +112,8 @@ export default function BillingPage() {
   const handlePayProvider = async (providerName: string, unpaidBookingIds: string[], amount: number) => {
      setPayingProvider(providerName);
      try {
+        const providerRequest = invoiceRequests.find(req => req.providerName === providerName);
+        
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -112,6 +122,7 @@ export default function BillingPage() {
                 bookingIds: unpaidBookingIds,
                 amount,
                 paymentDate: new Date().toISOString(),
+                invoiceRequestId: providerRequest?._id
             })
         });
 
@@ -147,6 +158,39 @@ export default function BillingPage() {
           Manage and process payments for your service providers based on completed jobs.
         </p>
       </div>
+
+      {loading ? (
+          <Skeleton className="h-32 w-full" />
+      ) : invoiceRequests.length > 0 && (
+          <Card className="mb-8 bg-amber-50 border-amber-300">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-amber-900">
+                      <BellRing />
+                      Pending Invoice Requests
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Provider</TableHead>
+                              <TableHead>Request Date</TableHead>
+                              <TableHead>Invoice For</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {invoiceRequests.map(req => (
+                              <TableRow key={req._id}>
+                                  <TableCell className="font-medium">{req.providerName}</TableCell>
+                                  <TableCell>{new Date(req.requestDate).toLocaleDateString()}</TableCell>
+                                  <TableCell>{new Date(req.year, req.month).toLocaleString('default', { month: 'long', year: 'numeric' })}</TableCell>
+                              </TableRow>
+                          ))}
+                      </TableBody>
+                  </Table>
+              </CardContent>
+          </Card>
+      )}
       
       {loading ? (
         <div className="grid gap-6">

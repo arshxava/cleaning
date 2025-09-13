@@ -7,17 +7,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/components/session-provider';
 import { BookingCard } from '@/components/booking-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquareWarning, Wrench } from 'lucide-react';
+import { MessageSquareWarning, Wrench, FileText, Loader2 } from 'lucide-react';
 import { ProviderComplaintCard } from '@/components/provider-complaint-card';
 import { Booking } from '@/lib/types';
 import type { Complaint } from '@/lib/types';
-
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ProviderDashboardPage() {
   const { profile } = useSession();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRequestingInvoice, setIsRequestingInvoice] = useState(false);
 
   const fetchProviderData = async () => {
     if (!profile) return;
@@ -50,6 +54,38 @@ export default function ProviderDashboardPage() {
     fetchProviderData();
   }, [profile]);
   
+  const handleRequestInvoice = async () => {
+    if (!profile) return;
+    setIsRequestingInvoice(true);
+    try {
+        const response = await fetch('/api/invoice-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                providerId: profile.uid,
+                providerName: profile.name
+            })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to request invoice.');
+        }
+        toast({
+            title: 'Invoice Requested',
+            description: 'The admin has been notified of your monthly invoice request.'
+        });
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: (error as Error).message
+        });
+    } finally {
+        setIsRequestingInvoice(false);
+    }
+  };
+
+
   const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
 
   if (!profile) {
@@ -89,7 +125,7 @@ export default function ProviderDashboardPage() {
       </div>
 
        <Tabs defaultValue="jobs">
-        <TabsList className="grid w-full grid-cols-2 max-w-lg mx-auto">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl mx-auto">
             <TabsTrigger value="jobs">
                 <Wrench className="mr-2 h-4 w-4"/>
                 Assigned Jobs
@@ -98,6 +134,10 @@ export default function ProviderDashboardPage() {
                 <MessageSquareWarning className="mr-2 h-4 w-4"/>
                 Complaints
                 {pendingComplaints.length > 0 && <Badge className="ml-2">{pendingComplaints.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="billing">
+                <FileText className="mr-2 h-4 w-4"/>
+                Billing
             </TabsTrigger>
         </TabsList>
         <TabsContent value="jobs" className="mt-8">
@@ -152,6 +192,28 @@ export default function ProviderDashboardPage() {
                     </div>
                 )}
             </div>
+        </TabsContent>
+        <TabsContent value="billing" className="mt-8">
+             <div className="max-w-md mx-auto">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Monthly Invoice</CardTitle>
+                        <CardDescription>
+                            When you are ready to receive payment for all completed services for the current month, you can notify the admin.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" size="lg" onClick={handleRequestInvoice} disabled={isRequestingInvoice}>
+                           {isRequestingInvoice ? (
+                             <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                Requesting...
+                             </>
+                           ) : "Request Monthly Invoice"}
+                        </Button>
+                    </CardContent>
+                 </Card>
+             </div>
         </TabsContent>
        </Tabs>
     </div>

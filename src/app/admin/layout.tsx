@@ -16,7 +16,7 @@ import {
   HardHat,
   Briefcase,
   Receipt,
-  Image as ImageIcon,
+  ImageIcon,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import Header from '@/components/header';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/session-provider';
 import { useEffect, useState } from 'react';
+import { InvoiceRequest } from '@/lib/types';
 
 type Complaint = {
   id: string;
@@ -46,31 +47,46 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { profile } = useSession();
   const [pendingComplaints, setPendingComplaints] = useState(0);
+  const [pendingInvoiceRequests, setPendingInvoiceRequests] = useState(0);
 
   useEffect(() => {
-    const fetchComplaints = async () => {
+    const fetchAdminData = async () => {
       try {
-        const response = await fetch('/api/complaints');
-        if (!response.ok) {
-          throw new Error('Failed to fetch complaints');
+        const [complaintsRes, invoiceRequestsRes] = await Promise.all([
+          fetch('/api/complaints'),
+          fetch('/api/invoice-requests?status=pending'),
+        ]);
+
+        if (complaintsRes.ok) {
+          const data: Complaint[] = await complaintsRes.json();
+          const pendingCount = data.filter(c => c.status === 'Pending').length;
+          setPendingComplaints(pendingCount);
         }
-        const data: Complaint[] = await response.json();
-        const pendingCount = data.filter(c => c.status === 'Pending').length;
-        setPendingComplaints(pendingCount);
+        
+        if (invoiceRequestsRes.ok) {
+           const data: InvoiceRequest[] = await invoiceRequestsRes.json();
+           setPendingInvoiceRequests(data.length);
+        }
+
       } catch (error) {
         console.error(error);
       }
     };
 
-    fetchComplaints();
+    fetchAdminData();
+    
+    // Poll for new data every 30 seconds
+    const interval = setInterval(fetchAdminData, 30000);
+    return () => clearInterval(interval);
+
   }, []);
 
   const navLinks = [
-    { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
+    { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning, badge: pendingComplaints },
     { href: '/admin/buildings', label: 'Buildings', icon: Building },
     { href: '/admin/providers', label: 'Providers', icon: HardHat },
     { href: '/admin/ongoing-services', label: 'Ongoing Services', icon: Briefcase },
-    { href: '/admin/billing', label: 'Billing', icon: Receipt },
+    { href: '/admin/billing', label: 'Billing', icon: Receipt, notification: pendingInvoiceRequests },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart, disabled: true },
   ];
@@ -103,10 +119,18 @@ export default function AdminLayout({
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
-                   {link.href === '/admin/complaints' && pendingComplaints > 0 && (
+                   {link.badge && link.badge > 0 && (
                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-                      {pendingComplaints}
+                      {link.badge}
                     </Badge>
+                  )}
+                  {link.notification && link.notification > 0 && (
+                    <div className="relative ml-auto">
+                        <Bell className="h-5 w-5 text-primary" />
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                            {link.notification}
+                        </span>
+                    </div>
                   )}
                 </Link>
               ))}

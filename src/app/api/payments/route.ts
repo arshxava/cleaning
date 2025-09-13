@@ -9,6 +9,7 @@ const paymentSchema = z.object({
   bookingIds: z.array(z.string()),
   amount: z.number(),
   paymentDate: z.string().datetime(),
+  invoiceRequestId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -29,12 +30,19 @@ export async function POST(request: Request) {
     // 2. Update the bookings to mark them as paid to the provider
     const bookingObjectIds = data.bookingIds.map(id => new ObjectId(id));
 
-    const updateResult = await db.collection('bookings').updateMany(
+    await db.collection('bookings').updateMany(
       { _id: { $in: bookingObjectIds } },
       { $set: { providerPaid: true } }
     );
+    
+    // 3. If an invoice request was associated, mark it as paid
+    if (data.invoiceRequestId && ObjectId.isValid(data.invoiceRequestId)) {
+      await db.collection('invoiceRequests').updateOne(
+        { _id: new ObjectId(data.invoiceRequestId) },
+        { $set: { status: 'paid' } }
+      );
+    }
 
-    console.log(`Marked ${updateResult.modifiedCount} bookings as paid for provider ${data.providerName}.`);
 
     return NextResponse.json({ message: 'Payment recorded successfully' }, { status: 201 });
   } catch (error) {
