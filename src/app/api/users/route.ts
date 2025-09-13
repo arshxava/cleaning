@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 const userSchema = z.object({
@@ -69,13 +69,9 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
-  console.log("POST /api/users request received.");
   try {
     const json = await request.json();
-    console.log("Request JSON payload:", json);
-
     const userData = userSchema.parse(json);
-    console.log("Parsed user data with Zod:", userData);
 
     const client = await clientPromise;
     const db = client.db();
@@ -87,47 +83,22 @@ export async function POST(request: Request) {
     }
 
     if (userData.role === 'user') {
-      console.log('Entering standard user creation flow.');
       if (!userData.uid) {
         return NextResponse.json({ message: 'User UID is required for standard signup.' }, { status: 400 });
       }
       const { password, ...restOfUserData } = userData;
       const dataToInsert = { ...restOfUserData, createdAt: new Date() };
       await usersCollection.insertOne(dataToInsert);
-      console.log("Successfully inserted standard user profile into MongoDB.");
       return NextResponse.json(dataToInsert, { status: 201 });
     }
 
     if (userData.role === 'provider' || userData.role === 'admin') {
-      console.log(`Entering ${userData.role} creation flow.`);
-
       let app: App;
       if (!getApps().length) {
-        console.log("Initializing Firebase Admin SDK for the first time.");
-        const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-        if (!serviceAccountString) {
-          console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
-          throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
-        }
-        
-        let serviceAccount;
-        try {
-            // This is the critical fix: replace escaped newlines before parsing.
-            const cleanedServiceAccountString = serviceAccountString.replace(/\\n/g, '\n');
-            serviceAccount = JSON.parse(cleanedServiceAccountString);
-            console.log("Successfully parsed FIREBASE_SERVICE_ACCOUNT JSON.");
-        } catch (e: any) {
-            console.error("CRITICAL: Failed to parse FIREBASE_SERVICE_ACCOUNT JSON. The variable is likely malformed.", e.message);
-            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not valid JSON. Please check its value in your deployment settings.");
-        }
-        
-        app = initializeApp({
-            credential: cert(serviceAccount)
-        });
-        console.log("Firebase Admin SDK initialized successfully.");
+        // Using Application Default Credentials
+        app = initializeApp();
       } else {
         app = getApps()[0];
-        console.log("Reusing existing Firebase Admin SDK app instance.");
       }
 
       if (!userData.password) {
@@ -135,14 +106,12 @@ export async function POST(request: Request) {
       }
 
       const auth = getAuth(app);
-      console.log("Creating user in Firebase Auth...");
       const userRecord = await auth.createUser({
         email: userData.email,
         password: userData.password,
         displayName: userData.name,
         emailVerified: true, 
       });
-      console.log("Successfully created Firebase user with UID:", userRecord.uid);
       
       const { password, ...rest } = userData;
       const dataToInsert = {
@@ -151,12 +120,9 @@ export async function POST(request: Request) {
         createdAt: new Date(),
       };
 
-      console.log("Inserting user profile into MongoDB:", dataToInsert);
       await usersCollection.insertOne(dataToInsert);
-      console.log("Successfully inserted user profile into MongoDB.");
 
       if (userData.role === 'provider') {
-        console.log("Sending credentials email to new provider...");
         await sendProviderCredentialsEmail(userData.email, userData.password);
       }
       
@@ -166,17 +132,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Invalid role specified' }, { status: 400 });
 
   } catch (error: any) {
-    console.error('--- UNHANDLED ERROR in POST /api/users ---');
+    console.error('--- UNHANDLED ERROR in POST /api/users ---', error);
     if (error.code === 'auth/email-already-exists') {
         return NextResponse.json({ message: 'User with this email already exists in Firebase.' }, { status: 409 });
     }
     if (error instanceof z.ZodError) {
-      console.error("Zod Validation Error:", error.errors);
       return NextResponse.json({ message: 'Invalid data provided', errors: error.errors }, { status: 400 });
     }
-    console.error("Generic Error:", error);
-    console.error("Error Message:", error.message);
-    console.error("Error Stack:", error.stack);
 
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
