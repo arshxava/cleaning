@@ -41,7 +41,6 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
   `;
 
   try {
-    console.log(`Preparing to send provider credentials email to ${email}`);
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,8 +50,6 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
     if (!response.ok) {
       const errorBody = await response.text();
       console.error("API call to /api/send-email failed:", response.status, errorBody);
-    } else {
-        console.log("Provider credential email sent successfully via API call to:", email);
     }
   } catch (error) {
     console.error("Fetch call to /api/send-email failed:", error);
@@ -72,9 +69,8 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
-  let originalJson;
   try {
-    originalJson = await request.json();
+    const originalJson = await request.json();
     const submittedPassword = originalJson.password; 
     const userData = userSchema.parse(originalJson);
 
@@ -117,7 +113,6 @@ export async function POST(request: Request) {
             });
             firebaseUid = userRecord.uid;
         } catch(e: any) {
-            console.error("Firebase Admin SDK user creation failed:", e);
              if (e.code === 'auth/email-already-exists') {
                 return NextResponse.json({ message: 'A user with this email already exists in Firebase Authentication.' }, { status: 409 });
             }
@@ -136,17 +131,14 @@ export async function POST(request: Request) {
 
     await usersCollection.insertOne(dataToInsert);
 
-    if (userData.role === 'provider' && submittedPassword) {
+    if (submittedPassword && userData.role === 'provider') {
         await sendProviderCredentialsEmail(userData.email, submittedPassword);
     }
     
-    // For 'user' roles, the client will handle the email verification flow.
-    // We return a success message here, and the client will sign in and proceed.
     return NextResponse.json({ message: 'User created successfully', uid: firebaseUid }, { status: 201 });
 
 
   } catch (error: any) {
-    console.error('--- UNHANDLED ERROR in POST /api/users ---', error);
     if (error.code === 'auth/email-already-exists') {
         return NextResponse.json({ message: 'User with this email already exists in Firebase.' }, { status: 409 });
     }
@@ -157,5 +149,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
-
-    

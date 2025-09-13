@@ -102,7 +102,6 @@ export default function ProvidersPage() {
 
       if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
       const buildingsData = await buildingsRes.json();
-      console.log("Buildings fetched:", buildingsData);
       setBuildings(buildingsData);
 
     } catch (error) {
@@ -122,13 +121,10 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // Omit `confirmPassword` before sending to the backend
-      const { confirmPassword, ...dataToSend } = values;
-
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...dataToSend, role: 'provider' }),
+        body: JSON.stringify({ ...values, role: 'provider' }),
       });
 
       if (!response.ok) {
@@ -138,7 +134,7 @@ export default function ProvidersPage() {
       
       toast({
         title: 'Provider Account Created',
-        description: `An account has been created for ${values.name}.`,
+        description: `An account has been created for ${values.name}. An email with their credentials has been sent.`,
       });
       form.reset();
       fetchInitialData(); // Refresh the list

@@ -11,5 +11,3 @@ export async function POST(request: Request) {
     { status: 410 } // 410 Gone
   );
 }
-
-    
