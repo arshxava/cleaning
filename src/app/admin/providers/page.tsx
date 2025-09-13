@@ -121,12 +121,9 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log('Form values on submit:', values);
     try {
       // Omit `confirmPassword` before sending to the backend
       const { confirmPassword, ...dataToSend } = values;
-
-      console.log('Data being sent to API:', dataToSend);
 
       const response = await fetch('/api/users', {
         method: 'POST',

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 import admin from 'firebase-admin';
-import { serviceAccount } from '@/lib/firebase-admin-credentials';
+import { serviceAccount as serviceAccountCredentials } from '@/lib/firebase-admin-credentials';
 
 const userSchema = z.object({
   uid: z.string().optional(),
@@ -17,6 +17,8 @@ const userSchema = z.object({
   role: z.enum(['user', 'admin', 'provider']).default('user'),
   commissionPercentage: z.coerce.number().optional(),
 });
+
+type UserData = z.infer<typeof userSchema>;
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
   console.log(`Preparing to send provider credentials email to ${email}`);
@@ -72,9 +74,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   console.log("POST /api/users request received.");
+  const originalJson = await request.json();
   try {
-    const json = await request.json();
-    const userData = userSchema.parse(json);
+    const userData = userSchema.parse(originalJson);
     console.log("User data parsed successfully:", { name: userData.name, email: userData.email, role: userData.role });
 
     const client = await clientPromise;
@@ -102,20 +104,21 @@ export async function POST(request: Request) {
     if (userData.role === 'provider' || userData.role === 'admin') {
       console.log(`Processing '${userData.role}' role creation.`);
       let firebaseUid: string | undefined = undefined;
-
       const isAdminSdkEnabled = process.env.FIREBASE_ADMIN_SDK_ENABLED === 'true';
+
       if (isAdminSdkEnabled) {
         try {
           if (!admin.apps.length) {
             console.log("Initializing Firebase Admin SDK...");
-             if (serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
-                console.warn("Placeholder private key detected in firebase-admin-credentials.ts. Firebase Admin SDK will not be initialized.");
-             } else {
-                admin.initializeApp({
+            const serviceAccount = serviceAccountCredentials as admin.ServiceAccount
+            if (serviceAccount.private_key && !serviceAccount.private_key.includes("YOUR_PRIVATE_KEY_HERE")) {
+               admin.initializeApp({
                     credential: admin.credential.cert(serviceAccount)
-                });
-                console.log("Firebase Admin SDK initialized successfully.");
-             }
+               });
+               console.log("Firebase Admin SDK initialized successfully.");
+            } else {
+               console.warn("Placeholder or missing private key in firebase-admin-credentials.ts. Firebase Admin SDK will not be initialized.");
+            }
           }
 
           if (admin.apps.length > 0 && userData.password) {
@@ -129,7 +132,6 @@ export async function POST(request: Request) {
             console.log("Successfully created user in Firebase Auth with UID:", userRecord.uid);
             firebaseUid = userRecord.uid;
           }
-
         } catch (e: any) {
           console.error("CRITICAL: Firebase Admin SDK operation failed.", e.message);
         }
@@ -146,10 +148,11 @@ export async function POST(request: Request) {
 
       await usersCollection.insertOne(dataToInsert);
       console.log("Successfully inserted provider/admin into database.");
-
-      if (userData.password && userData.role === 'provider') {
+      
+      const submittedPassword = (originalJson as UserData).password;
+      if (submittedPassword && userData.role === 'provider') {
         console.log("Triggering credential email to provider.");
-        await sendProviderCredentialsEmail(userData.email, userData.password);
+        await sendProviderCredentialsEmail(userData.email, submittedPassword);
       }
       
       return NextResponse.json(dataToInsert, { status: 201 });
