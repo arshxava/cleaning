@@ -21,6 +21,32 @@ const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
+// This function will attempt to create a profile if one doesn't exist for an authenticated user.
+const ensureUserProfile = async (user: User): Promise<UserProfile | null> => {
+  try {
+    const response = await fetch('/api/users/ensure-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || 'New User',
+        phone: user.phoneNumber || '',
+      }),
+    });
+
+    if (response.ok) {
+      const profileData = await response.json();
+      return profileData;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to ensure user profile:', error);
+    return null;
+  }
+};
+
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -40,9 +66,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Effect 2: Fetch profile only when a user object exists
+  // Effect 2: Fetch profile, and create it if it's missing.
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchAndEnsureProfile = async () => {
       if (user) {
         setLoading(true);
         try {
@@ -50,26 +76,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (response.ok) {
             const profileData: UserProfile = await response.json();
             setProfile(profileData);
+          } else if (response.status === 404) {
+            console.log("Profile not found, attempting to create one...");
+            const newProfile = await ensureUserProfile(user);
+            if (newProfile) {
+              setProfile(newProfile);
+            } else {
+              // If we still can't get a profile, something is wrong. Log out.
+              console.error("Failed to create a profile on-the-fly. Signing out.");
+              await auth.signOut();
+            }
           } else {
-            // This can occur if DB entry fails after signup.
-            // Signing them out forces a clean slate.
-            console.error("Profile not found for authenticated user, signing out.");
+            console.error("API error fetching profile, signing out.");
             await auth.signOut();
-            setUser(null);
-            setProfile(null);
           }
         } catch (error) {
           console.error("Failed to fetch user profile, signing out.", error);
           await auth.signOut();
-          setUser(null);
-          setProfile(null);
         } finally {
            setLoading(false);
         }
       }
     };
     
-    fetchProfile();
+    fetchAndEnsureProfile();
   }, [user]);
 
   // Effect 3: Handle routing logic once loading is complete
