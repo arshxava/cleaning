@@ -98,35 +98,50 @@ export default function SignUpPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      // 2. Update Firebase profile with display name
-      await updateProfile(user, {
-        displayName: values.name,
-      });
-
-      // 3. Send verification email
-      await sendEmailVerification(user);
-
-      // 4. Save user data to MongoDB via our API route
-      const response = await fetch('/api/users', {
+      // Step 1: Save user data to our database first.
+      // We send the password here to check for existing users on the backend,
+      // but it won't be saved in the database for 'user' roles.
+      const dbResponse = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          uid: user.uid,
           ...values,
           role: 'user',
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save user data.');
+      if (!dbResponse.ok) {
+        const errorData = await dbResponse.json();
+        // If the user already exists in our DB, we can short-circuit.
+        if (dbResponse.status === 409) {
+           form.setError("email", { type: "manual", message: "This email is already in use." });
+           throw new Error(errorData.message || 'This email is already registered.');
+        }
+        throw new Error(errorData.message || 'Failed to save user profile.');
       }
+
+      const { uid } = await dbResponse.json();
+
+      if (!uid) {
+         throw new Error("User creation in DB failed to return a UID.");
+      }
+
+      // Step 2: Create user in Firebase Auth.
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // This is a safety check. The UID from Firebase should match the one we expect.
+      // In a real app, you might have reconciliation logic here if they don't match.
+      if (user.uid !== uid) {
+          console.warn("Firebase UID and backend UID mismatch.");
+          // For now, we'll proceed, but this indicates a potential issue.
+      }
+      
+      // Step 3. Update Firebase profile and send verification.
+      await updateProfile(user, { displayName: values.name });
+      await sendEmailVerification(user);
 
       toast({
         title: 'Account Created!',
