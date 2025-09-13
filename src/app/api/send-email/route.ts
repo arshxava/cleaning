@@ -1,9 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { z } from 'zod';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { transporter } from '@/lib/nodemailer';
 
 const emailSchema = z.object({
   to: z.string().email(),
@@ -16,21 +14,28 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { to, subject, html } = emailSchema.parse(json);
 
-    const fromAddress = 'onboarding@resend.dev';
+    const fromAddress = process.env.GMAIL_EMAIL;
 
-    const { data, error } = await resend.emails.send({
-      from: `A+ Cleaning Solutions <${fromAddress}>`,
-      to: [to],
-      subject: subject,
-      html: html,
-    });
-
-    if (error) {
-      console.error("Resend API Error:", error);
-      return NextResponse.json({ message: 'Error sending email', error }, { status: 500 });
+    if (!fromAddress) {
+       console.error('GMAIL_EMAIL environment variable not set.');
+       return NextResponse.json({ message: 'Server configuration error: From address is not configured.' }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Email sent successfully', data });
+    const mailOptions = {
+        from: `A+ Cleaning Solutions <${fromAddress}>`,
+        to: to,
+        subject: subject,
+        html: html,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return NextResponse.json({ message: 'Email sent successfully' });
+    } catch (error: any) {
+        console.error('Nodemailer Error:', error);
+        return NextResponse.json({ message: 'Error sending email', error: error.message }, { status: 500 });
+    }
+
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
