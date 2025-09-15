@@ -51,8 +51,6 @@ type ProviderBillingInfo = {
   paidBookings: Booking[];
 }
 
-const useMockData = process.env.NODE_ENV === 'development';
-
 export default function BillingPage() {
   const { toast } = useToast();
   const [billingData, setBillingData] = useState<ProviderBillingInfo[]>([]);
@@ -63,47 +61,6 @@ export default function BillingPage() {
   const fetchBillingData = async () => {
     try {
       setLoading(true);
-
-      if (useMockData) {
-        console.log("Using mock data for billing page.");
-        
-        const mockProviders: ProviderProfile[] = [
-            { uid: 'provider-1', name: 'Quality First Sparkle', email: 'qfs@test.com', phone: '111-222-3333', role: 'provider', commissionPercentage: 15, createdAt: new Date() },
-            { uid: 'provider-2', name: 'Ethan Hunt Services', email: 'ethan@test.com', phone: '444-555-6666', role: 'provider', commissionPercentage: 10, createdAt: new Date() },
-        ];
-
-        const mockBookings: Booking[] = [
-            // Bookings for Quality First Sparkle
-            { _id: 'booking-1', userId: 'user-1', userName: 'Alice', building: 'Chestnut Residence', service: 'Deep Clean', price: 120, status: 'Completed', provider: 'Quality First Sparkle', date: new Date(2024, 5, 15).toISOString(), providerPaid: false, roomCounts: { standard: 0, deep: 1, 'move-out': 0}, time: '', frequency: 'one-time', beforeImages:[], afterImages: [], createdAt: new Date() },
-            { _id: 'booking-2', userId: 'user-2', userName: 'Bob', building: 'Chestnut Residence', service: 'Standard Clean', price: 75, status: 'Completed', provider: 'Quality First Sparkle', date: new Date(2024, 5, 18).toISOString(), providerPaid: false, roomCounts: { standard: 1, deep: 0, 'move-out': 0}, time: '', frequency: 'one-time', beforeImages:[], afterImages: [], createdAt: new Date() },
-            { _id: 'booking-3', userId: 'user-3', userName: 'Charlie', building: 'New College', service: 'Standard Clean', price: 60, status: 'Completed', provider: 'Quality First Sparkle', date: new Date(2024, 5, 2).toISOString(), providerPaid: true, roomCounts: { standard: 1, deep: 0, 'move-out': 0}, time: '', frequency: 'one-time', beforeImages:[], afterImages: [], createdAt: new Date() },
-            // Bookings for Ethan Hunt
-            { _id: 'booking-4', userId: 'user-4', userName: 'Diana', building: 'Innis College', service: 'Move-In/Out Clean', price: 200, status: 'Completed', provider: 'Ethan Hunt Services', date: new Date(2024, 5, 20).toISOString(), providerPaid: false, roomCounts: { standard: 0, deep: 0, 'move-out': 1}, time: '', frequency: 'one-time', beforeImages:[], afterImages: [], createdAt: new Date() },
-             // Unassigned booking
-            { _id: 'booking-5', userId: 'user-5', userName: 'Eve', building: 'Woodsworth College', service: 'Deep Clean', price: 150, status: 'Completed', provider: 'Unassigned', date: new Date(2024, 5, 21).toISOString(), providerPaid: false, roomCounts: { standard: 0, deep: 1, 'move-out': 0}, time: '', frequency: 'one-time', beforeImages:[], afterImages: [], createdAt: new Date() },
-        ];
-
-        const mockInvoiceRequests: InvoiceRequest[] = [
-            { _id: 'req-1', providerId: 'provider-1', providerName: 'Quality First Sparkle', requestDate: new Date(), status: 'pending', month: 5, year: 2024 }
-        ];
-        
-        setInvoiceRequests(mockInvoiceRequests);
-
-        const data: ProviderBillingInfo[] = mockProviders.map(provider => {
-            const providerBookings = mockBookings.filter(b => b.provider === provider.name && b.status === 'Completed');
-            const unpaidBookings = providerBookings.filter(b => !b.providerPaid);
-            const paidBookings = providerBookings.filter(b => b.providerPaid);
-            const totalServiceValue = providerBookings.reduce((sum, b) => sum + b.price, 0);
-            const commissionPercentage = provider.commissionPercentage || 0;
-            const totalPayoutDue = unpaidBookings.reduce((sum, b) => sum + (b.price - (b.price * (commissionPercentage / 100))), 0);
-            return { provider, totalServiceValue, totalPayoutDue, unpaidBookings, paidBookings };
-        });
-
-        setBillingData(data);
-        setLoading(false);
-        return;
-      }
-
 
       const [providersRes, bookingsRes, requestsRes] = await Promise.all([
         fetch('/api/users'),
@@ -159,7 +116,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     fetchBillingData();
-  }, []);
+  }, [toast]);
 
   const generateInvoicePDF = (info: ProviderBillingInfo, output: 'blob' | 'datauristring' = 'blob'): jsPDF => {
     const doc = new jsPDF();
@@ -447,3 +404,5 @@ export default function BillingPage() {
     </>
   );
 }
+
+    
