@@ -129,6 +129,22 @@ export default function BookingPage() {
     };
     fetchBuildings();
   }, []);
+
+  useEffect(() => {
+    if (profile && buildings.length > 0) {
+      if (profile.school) {
+        const userBuilding = buildings.find(b => b.name === profile.school);
+        if (userBuilding) {
+          setSelectedBuilding(userBuilding);
+          setBuilding(userBuilding.name);
+          // Pre-fill apartment type if it exists in the building's room types
+          if (profile.roomSize && userBuilding.roomTypes.some(rt => rt.name === profile.roomSize)) {
+            setApartmentType(profile.roomSize);
+          }
+        }
+      }
+    }
+  }, [profile, buildings]);
   
   const handleBuildingChange = (buildingId: string) => {
       const buildingData = buildings.find(b => b._id === buildingId);
