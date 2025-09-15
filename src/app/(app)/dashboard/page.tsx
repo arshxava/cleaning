@@ -79,7 +79,7 @@ export default function DashboardPage() {
     <div className="container mx-auto py-12 px-4 md:px-6">
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl md:text-4xl font-headline font-bold">
-          Welcome back, {user.displayName || 'User'}!
+          Welcome back, {profile.name || 'User'}!
         </h1>
         <p className="text-muted-foreground">
           Here’s an overview of your A+ Cleaning Solutions account.
@@ -93,10 +93,10 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarImage src={'/images/avatar-placeholder.png'} />
-                <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="font-headline text-2xl">{user.displayName || 'Anonymous User'}</CardTitle>
+                <CardTitle className="font-headline text-2xl">{profile.name || 'Anonymous User'}</CardTitle>
                 <CardDescription>{user.email}</CardDescription>
               </div>
             </CardHeader>
@@ -105,9 +105,6 @@ export default function DashboardPage() {
                 <span className='font-semibold'>Role:</span>
                 <Badge variant={profile.role === 'admin' ? 'destructive' : 'secondary'}>{profile.role}</Badge>
               </div>
-              <Button asChild variant="outline" className="w-full mt-2">
-                 <Link href="/edit-profile">Edit Profile</Link>
-              </Button>
             </CardContent>
           </Card>
         </div>
