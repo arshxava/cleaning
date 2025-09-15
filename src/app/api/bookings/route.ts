@@ -30,6 +30,49 @@ const updateBookingSchema = z.object({
 });
 
 
+async function sendBookingConfirmationEmail(userId: string, bookingDetails: any) {
+    const client = await clientPromise;
+    const db = client.db();
+    const user = await db.collection('users').findOne({ uid: userId });
+
+    if (!user) {
+        console.error("Could not find user to email for booking confirmation");
+        return;
+    }
+
+    const to = user.email;
+    const subject = `Your Booking is Confirmed! (ID: ${bookingDetails.id.toString()})`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h1>Booking Confirmed!</h1>
+            <p>Hello ${user.name},</p>
+            <p>Your cleaning service has been scheduled. Here are the details:</p>
+            <ul style="list-style-type: none; padding: 0;">
+                <li><strong>Service:</strong> ${bookingDetails.service}</li>
+                <li><strong>Building:</strong> ${bookingDetails.building}</li>
+                <li><strong>Date:</strong> ${new Date(bookingDetails.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})}</li>
+                <li><strong>Time:</strong> ${bookingDetails.time}</li>
+                <li><strong>Total Price:</strong> $${bookingDetails.price.toFixed(2)}</li>
+            </ul>
+            <p>Thank you for choosing A+ Cleaning Solutions!</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to, subject, html }),
+        });
+        if (!response.ok) {
+            console.error("Failed to send booking confirmation email:", await response.text());
+        }
+    } catch (error) {
+        console.error("Error sending booking confirmation email:", error);
+    }
+}
+
+
 export async function POST(request: Request) {
   try {
     const json = await request.json();
@@ -40,15 +83,7 @@ export async function POST(request: Request) {
 
     // Find the building to determine the assigned provider.
     const buildingDoc = await db.collection('buildings').findOne({ name: data.building });
-    let providerName = 'Unassigned';
-
-    if (buildingDoc) {
-        // Find a provider who is assigned to this building's ID
-        const provider = await db.collection('users').findOne({ role: 'provider', assignedBuildings: buildingDoc._id.toString() });
-        if (provider) {
-            providerName = provider.name;
-        }
-    }
+    let providerName = buildingDoc?.assignedProvider || 'Unassigned';
 
     const bookingData = {
       ...data,
@@ -60,6 +95,9 @@ export async function POST(request: Request) {
     };
 
     const result = await db.collection('bookings').insertOne(bookingData);
+    
+    // Send confirmation email
+    await sendBookingConfirmationEmail(data.userId, { ...data, id: result.insertedId });
 
     return NextResponse.json({ message: 'Booking created successfully', id: result.insertedId }, { status: 201 });
   } catch (error) {
@@ -119,5 +157,3 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
     }
 }
-
-    
