@@ -111,10 +111,19 @@ export const BookingCard = ({ booking, userRole, commissionPercentage, onUpdate 
                 const existingImages = type === 'before' ? booking.beforeImages : booking.afterImages;
                 const updatedImages = [...(existingImages || []), ...newImageUrls].slice(0, 5);
                 
-                const updateData: Partial<Booking> = {
-                    ...(type === 'before' && { beforeImages: updatedImages, status: 'In Process' }),
-                    ...(type === 'after' && { afterImages: updatedImages, status: 'Completed' }),
-                };
+                let updateData: Partial<Booking>;
+
+                if (type === 'before') {
+                    updateData = { 
+                        beforeImages: updatedImages, 
+                        status: 'In Process' 
+                    };
+                } else { // type === 'after'
+                    updateData = { 
+                        afterImages: updatedImages, 
+                        status: 'Completed' 
+                    };
+                }
                 
                 await updateBooking(updateData);
                 
