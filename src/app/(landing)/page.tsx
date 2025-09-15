@@ -13,7 +13,7 @@ import {
   MessageSquare,
   Lock
 } from 'lucide-react';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -102,10 +102,8 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // 2. Send verification email
-      await sendEmailVerification(user);
-
-      // 3. Create user profile in your database via API
+      // 2. Create user profile in your database via API
+      // This will also trigger the verification email from the backend.
       const profileResponse = await fetch('/api/users/ensure-profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
