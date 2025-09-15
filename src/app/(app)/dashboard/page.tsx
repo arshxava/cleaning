@@ -96,7 +96,7 @@ export default function DashboardPage() {
                 <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="font-headline text-2xl">{profile.name || 'Anonymous User'}</CardTitle>
+                <CardTitle className="font-headline text-2xl">{profile.name || 'User'}</CardTitle>
                 <CardDescription>{user.email}</CardDescription>
               </div>
             </CardHeader>
