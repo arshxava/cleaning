@@ -8,6 +8,8 @@ import {
   MessageSquare,
   User,
   Building,
+  Loader2,
+  Send,
 } from 'lucide-react';
 import type { AnalyzeComplaintOutput } from '@/ai/flows/complaint-response-time-analyzer';
 import { cn } from '@/lib/utils';
@@ -29,13 +31,24 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getComplaintAnalysis } from './actions';
+import { getComplaintAnalysis, markComplaintAsResolved } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Complaint } from '@/lib/types';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type ComplaintCardProps = Complaint & {
     lastResponseHours: number;
+    onUpdate?: () => void;
 }
 
 type AnalysisResult = {
@@ -44,12 +57,13 @@ type AnalysisResult = {
   error?: string;
 };
 
-export function ComplaintAnalysisCard({ complaint }: { complaint: ComplaintCardProps }) {
+export function ComplaintAnalysisCard({ complaint, onUpdate }: { complaint: ComplaintCardProps }) {
   const [isPending, startTransition] = useTransition();
+  const [isResolving, setIsResolving] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
-    null
-  );
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
@@ -64,6 +78,49 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: ComplaintCardP
       }
     });
   };
+  
+  const handleMarkResolved = async () => {
+    setIsResolving(true);
+    const result = await markComplaintAsResolved(complaint._id);
+    if (result.success) {
+      toast({ title: 'Success', description: 'Complaint marked as resolved.' });
+      onUpdate?.();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+    setIsResolving(false);
+  };
+  
+  const handleSendReply = async () => {
+    if (replyText.trim().length < 10) {
+        toast({ variant: 'destructive', title: 'Reply is too short.'});
+        return;
+    }
+    setIsReplying(true);
+    try {
+        const response = await fetch('/api/admin-complaint-responses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                complaintId: complaint._id,
+                responseText: replyText,
+                adminName: 'Admin Team', // This could come from a profile
+                userId: complaint.userId,
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to send reply.');
+
+        toast({ title: "Reply Sent", description: "Your reply has been emailed to the user and the complaint is resolved."});
+        onUpdate?.();
+    } catch (error) {
+         toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+    } finally {
+        setIsReplying(false);
+        setReplyText('');
+    }
+  }
+
 
   return (
     <Card
@@ -75,7 +132,7 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: ComplaintCardP
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="font-headline text-xl">
-              Complaint #{complaint._id}
+              Complaint #{complaint._id.slice(-6)}
             </CardTitle>
             <CardDescription>
               {new Date(complaint.date).toLocaleString()}
@@ -199,8 +256,37 @@ export function ComplaintAnalysisCard({ complaint }: { complaint: ComplaintCardP
         </Accordion>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button>Reply to User</Button>
-        <Button variant="outline">Mark as Resolved</Button>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button>Reply to User</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reply to {complaint.user}</DialogTitle>
+                    <DialogDescription>
+                        Your response will be emailed to the user and this complaint will be marked as resolved.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Textarea 
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Write your response..."
+                        rows={5}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSendReply} disabled={isReplying}>
+                        {isReplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
+                        {isReplying ? 'Sending...' : 'Send Reply'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Button variant="outline" onClick={handleMarkResolved} disabled={isResolving}>
+            {isResolving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+            Mark Resolved (No Reply)
+        </Button>
       </CardFooter>
     </Card>
   );

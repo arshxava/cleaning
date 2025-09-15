@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 
 type ComplaintCardProps = Complaint & {
     lastResponseHours: number;
+    onUpdate?: () => void;
 }
 
 
@@ -18,30 +19,30 @@ export default function AdminComplaintsPage() {
   const [complaints, setComplaints] = useState<ComplaintCardProps[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchComplaints = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/complaints');
-        if (!response.ok) {
-          throw new Error('Failed to fetch complaints');
-        }
-        const data: Complaint[] = await response.json();
-        const formattedComplaints: ComplaintCardProps[] = data.map((c) => ({
-          ...c,
-          lastResponseHours: c.lastResponseTimestamp
-            ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
-            // Calculate hours since complaint if no response yet
-            : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000), 
-        }));
-        setComplaints(formattedComplaints);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/complaints');
+      if (!response.ok) {
+        throw new Error('Failed to fetch complaints');
       }
-    };
+      const data: Complaint[] = await response.json();
+      const formattedComplaints: ComplaintCardProps[] = data.map((c) => ({
+        ...c,
+        lastResponseHours: c.lastResponseTimestamp
+          ? Math.round((new Date().getTime() - new Date(c.lastResponseTimestamp).getTime()) / 3600000)
+          // Calculate hours since complaint if no response yet
+          : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000), 
+      }));
+      setComplaints(formattedComplaints);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchComplaints();
   }, []);
 
@@ -86,7 +87,7 @@ export default function AdminComplaintsPage() {
           </>
         ) : pendingComplaints.length > 0 ? (
           pendingComplaints.map((complaint) => (
-            <ComplaintAnalysisCard key={complaint._id} complaint={complaint} />
+            <ComplaintAnalysisCard key={complaint._id} complaint={{...complaint, onUpdate: fetchComplaints}} />
           ))
         ) : (
           <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>

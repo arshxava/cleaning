@@ -56,6 +56,15 @@ export type Complaint = {
   provider: string;
   lastResponseTimestamp?: any;
 };
+
+export type ComplaintResponse = {
+    _id: string;
+    complaintId: string;
+    responseText: string;
+    responder: 'admin' | 'provider';
+    responderName: string; // "Admin Team" or Provider's name
+    createdAt: any;
+}
     
 export type InvoiceRequest = {
   _id: string;
