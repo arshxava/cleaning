@@ -141,14 +141,6 @@ export default function DashboardPage() {
                      <div className="grid md:grid-cols-2 gap-6">
                         {bookings.map((booking, index) => (
                            <Card key={booking._id} className="flex flex-col">
-                            <div className="relative h-40 w-full">
-                                <Image 
-                                    src={index % 2 === 0 ? "/cleaning-dashboard-1.png" : "/cleaning-dashboard-2.png"}
-                                    alt={`Image for ${booking.service}`}
-                                    fill
-                                    className="object-cover rounded-t-lg"
-                                />
-                            </div>
                              <CardHeader>
                                <div className="flex justify-between items-start">
                                  <CardTitle className="text-lg font-headline flex items-center gap-2">
