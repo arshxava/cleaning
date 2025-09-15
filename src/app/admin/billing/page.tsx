@@ -161,12 +161,11 @@ export default function BillingPage() {
     fetchBillingData();
   }, []);
 
-  const handleGenerateInvoice = (info: ProviderBillingInfo) => {
+  const generateInvoicePDF = (info: ProviderBillingInfo, output: 'blob' | 'datauristring' = 'blob'): jsPDF => {
     const doc = new jsPDF();
     const invoiceDate = new Date();
     const invoiceId = `INV-${info.provider.uid.slice(-4)}-${invoiceDate.getTime()}`;
 
-    // --- Header ---
     doc.setFontSize(26);
     doc.setFont('helvetica', 'bold');
     doc.text('A+ Cleaning Solutions', 14, 22);
@@ -176,7 +175,6 @@ export default function BillingPage() {
     doc.text('Your Company Address, City, Postal Code', 14, 30);
     doc.text('contact@apluscleaning.com', 14, 35);
     
-    // --- Billed To and From ---
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('Billed To:', 14, 50);
@@ -190,7 +188,6 @@ export default function BillingPage() {
     doc.text(`Invoice #: ${invoiceId}`, 140, 56);
     doc.text(`Date: ${invoiceDate.toLocaleDateString()}`, 140, 62);
     
-    // --- Table of Services ---
     doc.autoTable({
         startY: 75,
         head: [['Booking Date', 'Service', 'Client', 'Service Price', 'Provider Earning']],
@@ -205,10 +202,10 @@ export default function BillingPage() {
             ];
         }),
         theme: 'striped',
-        headStyles: { fillColor: [38, 117, 101] }, // Primary color
+        headStyles: { fillColor: [38, 117, 101] },
         footStyles: {
             fontStyle: 'bold',
-            fillColor: [244, 244, 245], // Muted color
+            fillColor: [244, 244, 245],
             textColor: [10, 10, 10]
         },
         foot: [
@@ -216,53 +213,79 @@ export default function BillingPage() {
         ]
     });
     
-    // --- Footer ---
     const finalY = (doc as any).lastAutoTable.finalY;
     doc.setFontSize(10);
     doc.text('Thank you for your partnership!', 14, finalY + 20);
     doc.text('Payment will be processed within 5-7 business days.', 14, finalY + 25);
 
-
-    doc.output('dataurlnewwindow');
-    toast({ title: "Invoice Generated", description: `PDF invoice for ${info.provider.name} is ready for preview.` });
+    return doc;
   }
 
-  const handlePayProvider = async (providerName: string, unpaidBookingIds: string[], amount: number) => {
-     setPayingProvider(providerName);
-     try {
-        const providerRequest = invoiceRequests.find(req => req.providerName === providerName);
-        
-        // In mock mode, just simulate success
-        if (useMockData) {
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-        } else {
-            const response = await fetch('/api/payments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    providerName,
-                    bookingIds: unpaidBookingIds,
-                    amount,
-                    paymentDate: new Date().toISOString(),
-                    invoiceRequestId: providerRequest?._id
-                })
-            });
 
-            if (!response.ok) {
-                throw new Error("Payment processing failed.");
-            }
+  const handlePreviewInvoice = (info: ProviderBillingInfo) => {
+    const doc = generateInvoicePDF(info);
+    doc.output('dataurlnewwindow');
+    toast({ title: "Invoice Preview", description: `PDF invoice for ${info.provider.name} is ready for preview.` });
+  }
+
+  const handleSendAndPay = async (info: ProviderBillingInfo) => {
+     setPayingProvider(info.provider.name);
+     try {
+        const doc = generateInvoicePDF(info);
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
+        
+        // 1. Send the email with PDF attachment
+        const emailResponse = await fetch('/api/send-invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: info.provider.email,
+                subject: `Your Invoice from A+ Cleaning Solutions`,
+                html: `<p>Hello ${info.provider.name},</p><p>Please find your latest invoice attached to this email.</p><p>Best regards,<br/>A+ Cleaning Solutions</p>`,
+                pdfAttachment: {
+                    filename: `invoice-${info.provider.name}-${new Date().toISOString().split('T')[0]}.pdf`,
+                    content: pdfBase64,
+                }
+            })
+        });
+
+        if (!emailResponse.ok) {
+            const errorData = await emailResponse.json();
+            throw new Error(errorData.message || "Failed to send invoice email.");
+        }
+
+        toast({ title: "Invoice Sent", description: `Invoice has been emailed to ${info.provider.name}.` });
+        
+        // 2. Mark the bookings as paid
+        const providerRequest = invoiceRequests.find(req => req.providerName === info.provider.name);
+        const paymentResponse = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                providerName: info.provider.name,
+                bookingIds: info.unpaidBookings.map(b => b._id),
+                amount: info.totalPayoutDue,
+                paymentDate: new Date().toISOString(),
+                invoiceRequestId: providerRequest?._id
+            })
+        });
+
+        if (!paymentResponse.ok) {
+            throw new Error("Payment processing failed after sending email.");
         }
 
         toast({
             title: "Payment Successful",
-            description: `${providerName} has been paid $${amount.toFixed(2)}.`,
+            description: `${info.provider.name} has been paid $${info.totalPayoutDue.toFixed(2)}.`,
         });
         
-        fetchBillingData(); // Refresh data
+        // 3. Refresh data on success
+        fetchBillingData();
+
      } catch (error) {
          toast({
             variant: 'destructive',
-            title: 'Payment Error',
+            title: 'Action Failed',
             description: (error as Error).message
          })
      } finally {
@@ -385,7 +408,7 @@ export default function BillingPage() {
                     <div className="flex items-center gap-2">
                         <Button 
                             variant="outline"
-                            onClick={() => handleGenerateInvoice(info)}
+                            onClick={() => handlePreviewInvoice(info)}
                             disabled={info.totalPayoutDue === 0}
                         >
                           <FileText className="mr-2 h-4 w-4" />
@@ -393,7 +416,7 @@ export default function BillingPage() {
                         </Button>
                         <Button 
                             size="lg" 
-                            onClick={() => handlePayProvider(info.provider.name, info.unpaidBookings.map(b => b._id), info.totalPayoutDue)}
+                            onClick={() => handleSendAndPay(info)}
                             disabled={info.totalPayoutDue === 0 || payingProvider !== null}
                         >
                           {payingProvider === info.provider.name ? (
@@ -424,5 +447,3 @@ export default function BillingPage() {
     </>
   );
 }
-
-    
