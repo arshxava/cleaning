@@ -44,7 +44,7 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
   password: z.string().min(6, 'Password must be at least 6 characters.'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
-  notificationPreference: z.enum(['email', 'sms'], {
+  notificationPreference: z.enum(['email'], {
     required_error: 'Please select a notification preference.',
   }),
   school: z.string({ required_error: 'Please select your school.' }),
@@ -86,6 +86,7 @@ export default function SignUpPage() {
       email: '',
       password: '',
       phone: '',
+      notificationPreference: 'email',
     },
   });
   
@@ -245,14 +246,6 @@ export default function SignUpPage() {
                           </FormControl>
                           <FormLabel className="font-normal">
                             Email
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="sms" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            SMS
                           </FormLabel>
                         </FormItem>
                       </RadioGroup>

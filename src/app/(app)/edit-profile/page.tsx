@@ -42,7 +42,7 @@ import { useSession } from '@/components/session-provider';
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
-  notificationPreference: z.enum(['email', 'sms'], {
+  notificationPreference: z.enum(['email'], {
     required_error: 'Please select a notification preference.',
   }),
   school: z.string({ required_error: 'Please select your school.' }),
@@ -87,7 +87,7 @@ export default function EditProfilePage() {
       form.reset({
         name: profile.name,
         phone: profile.phone,
-        notificationPreference: profile.notificationPreference,
+        notificationPreference: 'email',
         school: profile.school,
         roomSize: profile.roomSize,
       });
@@ -233,15 +233,6 @@ export default function EditProfilePage() {
                           <FormLabel className="font-normal flex items-center">
                             <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
                             Email
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="sms" />
-                          </FormControl>
-                          <FormLabel className="font-normal flex items-center">
-                            <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
-                            SMS
                           </FormLabel>
                         </FormItem>
                       </RadioGroup>
