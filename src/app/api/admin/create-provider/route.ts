@@ -1,25 +1,18 @@
 
-
 import { NextResponse } from 'next/server';
+import admin from '@/lib/firebase-admin';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
-import admin from 'firebase-admin';
 
-// This schema is for creating a provider record in the database.
-// The Firebase user should already be created by the client (admin panel).
-const providerSchema = z.object({
-  uid: z.string(),
-  name: z.string(),
+const createProviderSchema = z.object({
+  name: z.string().min(2),
   email: z.string().email(),
-  phone: z.string(),
-  role: z.literal('provider'),
-  commissionPercentage: z.coerce.number().optional(),
-  password: z.string().optional(), // To trigger email sending
+  password: z.string().min(6),
+  phone: z.string().min(10),
+  commissionPercentage: z.coerce.number().min(0).max(100),
 });
 
-
 async function sendProviderCredentialsEmail(email: string, password: string) {
-  console.log("Sending email to:", email)
   const subject = 'Your A+ Cleaning Solutions Provider Account has been created';
   const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`;
 
@@ -58,21 +51,53 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
   }
 }
 
-
-export async function GET() {
+export async function POST(request: Request) {
   try {
+    const json = await request.json();
+    const data = createProviderSchema.parse(json);
+
+    // 1. Create user in Firebase Auth using Admin SDK
+    const userRecord = await admin.auth().createUser({
+      email: data.email,
+      password: data.password,
+      displayName: data.name,
+      phoneNumber: data.phone,
+    });
+
+    const uid = userRecord.uid;
+
+    // 2. Create provider profile in MongoDB
     const client = await clientPromise;
     const db = client.db();
-    const users = await db.collection('users').find({}).sort({ createdAt: -1 }).toArray();
-    return NextResponse.json(users);
-  } catch (error) {
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    const usersCollection = db.collection('users');
+
+    const dbData = {
+      uid,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: 'provider',
+      commissionPercentage: data.commissionPercentage,
+      createdAt: new Date(),
+    };
+
+    await usersCollection.insertOne(dbData);
+
+    // 3. Send credentials email
+    await sendProviderCredentialsEmail(data.email, data.password);
+
+    return NextResponse.json({ message: 'Provider created successfully', uid: userRecord.uid }, { status: 201 });
+
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+    }
+    
+    if (error.code === 'auth/email-already-exists') {
+        return NextResponse.json({ message: 'This email is already in use by another account.' }, { status: 409 });
+    }
+
+    console.error('Error creating provider:', error);
+    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
-}
-
-
-export async function POST(request: Request) {
-  // This endpoint is now deprecated for provider creation, but we keep it for potential future use for other roles.
-  // The new endpoint is /api/admin/create-provider
-  return NextResponse.json({ message: 'This endpoint is deprecated for creating providers. Please use /api/admin/create-provider.' }, { status: 404 });
 }
