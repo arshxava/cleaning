@@ -160,6 +160,10 @@ export default function ProviderDashboardPage() {
             : Math.round((new Date().getTime() - new Date(c.date).getTime()) / 3600000),
     }));
 
+  const resolvedComplaints = complaints
+    .filter(c => c.status === 'Resolved')
+    .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
@@ -227,19 +231,47 @@ export default function ProviderDashboardPage() {
             </div>
         </TabsContent>
         <TabsContent value="complaints" className="mt-8">
-            <div className="grid gap-6 max-w-4xl mx-auto">
-                {loading ? (
-                    <><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></>
-                ) : pendingComplaints.length > 0 ? (
-                    pendingComplaints.map((complaint) => (
-                        <ProviderComplaintCard key={complaint._id} complaint={complaint} onUpdate={handleUpdate}/>
-                    ))
-                ) : (
-                    <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
-                        <p>You have no pending complaints.</p>
+             <div className="max-w-4xl mx-auto">
+                <div className="grid gap-6">
+                    {loading ? (
+                        <><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /></>
+                    ) : pendingComplaints.length > 0 ? (
+                        pendingComplaints.map((complaint) => (
+                            <ProviderComplaintCard key={complaint._id} complaint={complaint} onUpdate={handleUpdate}/>
+                        ))
+                    ) : (
+                        <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
+                            <p>You have no pending complaints.</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-12">
+                    <h2 className="text-2xl font-headline font-bold mb-4">Resolved Complaints</h2>
+                    <div className="grid gap-6">
+                        {loading ? (
+                            <Skeleton className="h-24 w-full" />
+                        ) : resolvedComplaints.length > 0 ? (
+                        resolvedComplaints.map((complaint) => (
+                            <div key={complaint._id} className="p-4 bg-card rounded-lg border opacity-70">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                    <h3 className="font-semibold text-base">{complaint.user} - {complaint.building}</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">{complaint.complaint}</p>
+                                    <p className="text-xs text-muted-foreground mt-2">Resolved on: {new Date(complaint.lastResponseTimestamp).toLocaleDateString()}</p>
+                                    </div>
+                                    <Badge variant="secondary">Resolved</Badge>
+                                </div>
+                            </div>
+                        ))
+                        ) : (
+                        <div className='text-center text-muted-foreground bg-card p-8 rounded-lg border'>
+                            <p>No resolved complaints found.</p>
+                        </div>
+                        )}
                     </div>
-                )}
-            </div>
+                </div>
+             </div>
         </TabsContent>
         <TabsContent value="billing" className="mt-8">
              <div className="max-w-4xl mx-auto space-y-8">
