@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
+import { createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 
 import { Button } from '@/components/ui/button';
@@ -54,6 +56,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from '@/lib/utils';
+import { useSession } from '@/components/session-provider';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -72,6 +75,7 @@ type Building = { _id: string; name: string; location: string };
 
 export default function ProvidersPage() {
   const { toast } = useToast();
+  const { user: adminUser } = useSession();
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,36 +125,77 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!adminUser) {
+        toast({variant: 'destructive', title: 'Authentication Error', description: 'Admin user session not found.'});
+        return;
+    }
+    
+    // Temporarily store admin credentials
+    const adminCredential = auth.currentUser?.toJSON();
+
     try {
-      const response = await fetch('/api/admin/create-provider', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+      // 1. Create the new provider user. This will sign in the new user and sign out the admin.
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Create provider profile in your database
+      const profileResponse = await fetch('/api/users/ensure-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              uid: user.uid,
+              name: values.name,
+              email: values.email,
+              phone: values.phone,
+              notificationPreference: 'email',
+              school: 'N/A', // Providers aren't tied to a school/building directly
+              roomSize: 'N/A',
+              role: 'provider',
+              commissionPercentage: values.commissionPercentage,
+          }),
       });
 
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to create provider.');
+      if (!profileResponse.ok) {
+        throw new Error('Failed to save provider profile.');
       }
       
+      // 3. Send credentials email (via backend)
+       await fetch('/api/admin/create-provider', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: values.email, password: values.password})
+      });
+
+
       toast({
         title: 'Provider Account Created',
-        description: `An account for ${values.name} has been created. An email with their credentials has been sent.`,
+        description: `An account for ${values.name} has been created.`,
       });
       form.reset();
       fetchInitialData(); // Refresh the list
 
     } catch (error: any) {
-      let description = error.message || "An unexpected error occurred. Please try again.";
-      if (error.message.includes('already in use')) {
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "This email is already in use. Please try another email.";
         form.setError("email", { type: "manual", message: description });
       }
-      
       toast({
         variant: 'destructive',
         title: 'Creation Failed',
         description,
       });
+    } finally {
+      // 4. Re-authenticate the admin user
+       if (adminCredential) {
+          const user = await auth.updateCurrentUser(adminUser);
+          if (auth.currentUser?.uid !== adminUser.uid) {
+            // If the above didn't work, force re-sign in.
+             await auth.signOut();
+             // This is a simplified re-auth. A more robust solution would use a refresh token.
+             window.location.reload(); 
+          }
+      }
     }
   }
 

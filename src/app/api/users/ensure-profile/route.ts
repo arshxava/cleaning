@@ -10,10 +10,11 @@ const profileSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),
-  notificationPreference: z.enum(['email', 'sms']),
+  notificationPreference: z.enum(['email']),
   school: z.string(),
   roomSize: z.string(),
   role: z.enum(['user', 'admin', 'provider']),
+  commissionPercentage: z.number().optional(),
 });
 
 async function sendCustomVerificationEmail(email: string, name: string) {

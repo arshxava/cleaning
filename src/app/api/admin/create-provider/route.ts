@@ -1,15 +1,10 @@
 
 import { NextResponse } from 'next/server';
-import admin from '@/lib/firebase-admin';
-import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 
-const createProviderSchema = z.object({
-  name: z.string().min(2),
+const emailSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  phone: z.string().min(10),
-  commissionPercentage: z.coerce.number().min(0).max(100),
 });
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
@@ -54,50 +49,18 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
 export async function POST(request: Request) {
   try {
     const json = await request.json();
-    const data = createProviderSchema.parse(json);
+    const data = emailSchema.parse(json);
 
-    // 1. Create user in Firebase Auth using Admin SDK
-    const userRecord = await admin.auth().createUser({
-      email: data.email,
-      password: data.password,
-      displayName: data.name,
-      phoneNumber: data.phone,
-    });
-
-    const uid = userRecord.uid;
-
-    // 2. Create provider profile in MongoDB
-    const client = await clientPromise;
-    const db = client.db();
-    const usersCollection = db.collection('users');
-
-    const dbData = {
-      uid,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      role: 'provider',
-      commissionPercentage: data.commissionPercentage,
-      createdAt: new Date(),
-    };
-
-    await usersCollection.insertOne(dbData);
-
-    // 3. Send credentials email
     await sendProviderCredentialsEmail(data.email, data.password);
 
-    return NextResponse.json({ message: 'Provider created successfully', uid: userRecord.uid }, { status: 201 });
+    return NextResponse.json({ message: 'Provider credential email sent successfully' }, { status: 200 });
 
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
     
-    if (error.code === 'auth/email-already-exists') {
-        return NextResponse.json({ message: 'This email is already in use by another account.' }, { status: 409 });
-    }
-
-    console.error('Error creating provider:', error);
+    console.error('Error sending provider email:', error);
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
