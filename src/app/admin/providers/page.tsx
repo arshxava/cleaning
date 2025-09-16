@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 
@@ -124,28 +125,42 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // 1. Create the new provider user via the backend endpoint.
-      const response = await fetch('/api/admin/create-provider', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(values),
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Create provider profile in your database via API
+      const profileResponse = await fetch('/api/users/ensure-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              uid: user.uid,
+              name: values.name,
+              email: values.email,
+              phone: values.phone,
+              notificationPreference: 'email',
+              school: 'N/A', // Providers aren't tied to a school/building directly
+              roomSize: 'N/A',
+              role: 'provider',
+              commissionPercentage: values.commissionPercentage,
+          }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "An error occurred.");
+      if (!profileResponse.ok) {
+          const errorData = await profileResponse.json();
+          throw new Error(errorData.message || 'Failed to save user profile.');
       }
-
+      
       toast({
-        title: 'Provider Account Created',
-        description: `An account for ${values.name} has been created and an email was sent.`,
+          title: 'Provider Account Created',
+          description: `An account for ${values.name} has been successfully created.`,
       });
       form.reset();
-      fetchInitialData(); // Refresh the list
+      fetchInitialData(); // Refresh list
 
     } catch (error: any) {
       let description = "An unexpected error occurred. Please try again.";
-      if (error.message.includes('auth/email-already-in-use') || error.message.includes('already exists')) {
+      if (error.code === 'auth/email-already-in-use') {
         description = "This email is already in use. Please try another email.";
         form.setError("email", { type: "manual", message: description });
       } else {
@@ -338,3 +353,5 @@ export default function ProvidersPage() {
     </>
   );
 }
+
+    

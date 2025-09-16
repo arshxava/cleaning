@@ -21,28 +21,6 @@ const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
-const fetchProfileWithRetry = async (uid: string, retries = 3, delay = 500): Promise<any> => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(`/api/users/${uid}`);
-      if (response.ok) {
-        return await response.json();
-      }
-      if (response.status !== 404) {
-        // If it's not a 404, it's a server error, so don't retry.
-        throw new Error(`API error status: ${response.status}`);
-      }
-      // If it is a 404, wait and retry
-    } catch (error) {
-       // Network or other fetch errors
-       console.error(`Fetch profile attempt ${i + 1} failed:`, error);
-    }
-    await new Promise(res => setTimeout(res, delay * (i + 1)));
-  }
-  return null;
-}
-
-
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -55,12 +33,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
-        const profileData = await fetchProfileWithRetry(firebaseUser.uid);
+        const response = await fetch(`/api/users/${firebaseUser.uid}`);
         
-        if (profileData) {
+        if (response.ok) {
+            const profileData = await response.json();
             setProfile(profileData);
         } else {
-            console.error("Profile not found for authenticated user after retries, signing out.");
+            // This can occur if DB entry fails after signup.
+            // Signing them out forces a clean slate.
+            console.error("Profile not found for authenticated user, signing out.");
             await auth.signOut();
             setUser(null);
             setProfile(null);
@@ -149,3 +130,5 @@ export function useSession() {
   }
   return context;
 }
+
+    

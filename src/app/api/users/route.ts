@@ -72,7 +72,54 @@ export async function GET() {
 
 
 export async function POST(request: Request) {
-  // This endpoint is now deprecated for provider creation, but we keep it for potential future use for other roles.
-  // The new endpoint is /api/admin/create-provider
-  return NextResponse.json({ message: 'This endpoint is deprecated for creating providers. Please use /api/admin/create-provider.' }, { status: 404 });
+  try {
+    const json = await request.json();
+    const data = providerSchema.parse(json);
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Check if a user with this email already exists
+    const existingUser = await db.collection('users').findOne({ email: data.email });
+    if (existingUser) {
+      return NextResponse.json({ message: 'A user with this email already exists.' }, { status: 409 });
+    }
+    
+    // Check if a user with this UID already exists (shouldn't happen if Firebase creation is first)
+     const existingUid = await db.collection('users').findOne({ uid: data.uid });
+    if (existingUid) {
+      return NextResponse.json({ message: 'A user with this UID already exists.' }, { status: 409 });
+    }
+
+    const profileData = {
+        uid: data.uid,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        notificationPreference: 'email',
+        school: 'N/A', // Providers aren't tied to a school/building directly
+        roomSize: 'N/A',
+        role: 'provider',
+        commissionPercentage: data.commissionPercentage,
+        createdAt: new Date(),
+    };
+
+    await db.collection('users').insertOne(profileData);
+    
+    // If a password was included, it's a signal to send the credentials email
+    if (data.password) {
+      await sendProviderCredentialsEmail(data.email, data.password);
+    }
+
+    return NextResponse.json({ message: 'Provider account created successfully' }, { status: 201 });
+
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+    }
+    console.error('Error creating provider profile:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }
+
+    
