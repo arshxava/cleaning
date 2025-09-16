@@ -21,6 +21,28 @@ const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
+const fetchProfileWithRetry = async (uid: string, retries = 3, delay = 500): Promise<any> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`/api/users/${uid}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      if (response.status !== 404) {
+        // If it's not a 404, it's a server error, so don't retry.
+        throw new Error(`API error status: ${response.status}`);
+      }
+      // If it is a 404, wait and retry
+    } catch (error) {
+       // Network or other fetch errors
+       console.error(`Fetch profile attempt ${i + 1} failed:`, error);
+    }
+    await new Promise(res => setTimeout(res, delay * (i + 1)));
+  }
+  return null;
+}
+
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -33,28 +55,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
-        try {
-          const response = await fetch(`/api/users/${firebaseUser.uid}`);
-          if (response.ok) {
-            const profileData = await response.json();
+        const profileData = await fetchProfileWithRetry(firebaseUser.uid);
+        
+        if (profileData) {
             setProfile(profileData);
-          } else if (response.status === 404) {
-            // This can occur if DB entry fails after signup.
-            // Signing them out forces a clean slate.
-            console.error("Profile not found for authenticated user, signing out.");
+        } else {
+            console.error("Profile not found for authenticated user after retries, signing out.");
             await auth.signOut();
             setUser(null);
             setProfile(null);
-          } else {
-             console.error("API error fetching profile, signing out.");
-             await auth.signOut();
-          }
-        } catch (error) {
-          console.error("Failed to fetch user profile, signing out.", error);
-          await auth.signOut();
-        } finally {
-          setLoading(false);
         }
+        setLoading(false);
       } else {
         setUser(null);
         setProfile(null);
