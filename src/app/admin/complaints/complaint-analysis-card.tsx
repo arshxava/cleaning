@@ -60,27 +60,11 @@ type AnalysisResult = {
 };
 
 export function ComplaintAnalysisCard({ complaint, onUpdate }: { complaint: ComplaintCardProps }) {
-  const [isPending, startTransition] = useTransition();
   const [isResolving, setIsResolving] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
-  const handleSubmit = (formData: FormData) => {
-    startTransition(async () => {
-      const result = await getComplaintAnalysis(formData);
-      setAnalysisResult(result);
-      if (!result.success) {
-        toast({
-          variant: 'destructive',
-          title: 'Analysis Failed',
-          description: result.error,
-        });
-      }
-    });
-  };
-  
   const handleMarkResolved = async () => {
     setIsResolving(true);
     const result = await markComplaintAsResolved(complaint._id);
@@ -186,80 +170,6 @@ export function ComplaintAnalysisCard({ complaint, onUpdate }: { complaint: Comp
             />
           </div>
         )}
-
-        <Accordion type="single" collapsible className="w-full mt-4">
-          <AccordionItem value="item-1">
-            <AccordionTrigger>
-              <div className="flex items-center gap-2 text-primary">
-                <Bot className="h-5 w-5" />
-                Analyze with AI
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <form action={handleSubmit} className="space-y-4 pt-2">
-                <input
-                  type="hidden"
-                  name="complaintText"
-                  value={complaint.complaint}
-                />
-                <div>
-                  <Label htmlFor="timeSinceLastResponse">
-                    Time Since Last Response (Hours)
-                  </Label>
-                  <Input
-                    id="timeSinceLastResponse"
-                    name="timeSinceLastResponse"
-                    type="number"
-                    defaultValue={complaint.lastResponseHours}
-                    className="mt-1"
-                  />
-                </div>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? 'Analyzing...' : 'Run Analysis'}
-                </Button>
-              </form>
-
-              {analysisResult?.success && analysisResult.data && (
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Analysis Result</h4>
-                  <div
-                    className={cn(
-                      'p-4 rounded-md border text-sm',
-                      analysisResult.data.needsReminder
-                        ? 'bg-destructive/10 border-destructive'
-                        : 'bg-green-500/10 border-green-500'
-                    )}
-                  >
-                    <div className="flex items-start">
-                      {analysisResult.data.needsReminder ? (
-                        <AlertTriangle className="h-5 w-5 mr-3 mt-0.5 text-destructive" />
-                      ) : (
-                        <Bot className="h-5 w-5 mr-3 mt-0.5 text-green-600" />
-                      )}
-                      <div>
-                        <p
-                          className={cn(
-                            'font-bold',
-                            analysisResult.data.needsReminder
-                              ? 'text-destructive'
-                              : 'text-green-700'
-                          )}
-                        >
-                          {analysisResult.data.needsReminder
-                            ? 'Reminder Needed'
-                            : 'No Reminder Needed'}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {analysisResult.data.reason}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
       </CardContent>
       <CardFooter className="flex gap-2">
         <Dialog>
