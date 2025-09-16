@@ -50,7 +50,7 @@ export default function AdminComplaintsPage() {
     (c) => c.status === 'Pending'
   ).sort((a,b) => b.lastResponseHours - a.lastResponseHours);
 
-  const resolvedComplaintsData = complaints.filter(c => c.status === 'Resolved');
+  const resolvedComplaintsData = complaints.filter(c => c.status === 'Resolved').sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const unresolvedComplaints = pendingComplaints.filter(c => c.lastResponseHours > 24);
 
   return (
@@ -103,11 +103,12 @@ export default function AdminComplaintsPage() {
                 <Skeleton className="h-24 w-full" />
             ) : resolvedComplaintsData.length > 0 ? (
               resolvedComplaintsData.map((complaint) => (
-                <div key={complaint._id} className="p-6 bg-card rounded-lg border opacity-60">
+                <div key={complaint._id} className="p-4 bg-card rounded-lg border opacity-70">
                     <div className="flex justify-between items-start">
                         <div>
-                        <h3 className="font-bold">{complaint.user} - {complaint.building}</h3>
-                        <p className="text-sm text-muted-foreground">{complaint._id}</p>
+                        <h3 className="font-semibold text-base">{complaint.user} - {complaint.building}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{complaint.complaint}</p>
+                        <p className="text-xs text-muted-foreground mt-2">Resolved on: {new Date(complaint.lastResponseTimestamp).toLocaleDateString()}</p>
                         </div>
                         <Badge variant="secondary">Resolved</Badge>
                     </div>
