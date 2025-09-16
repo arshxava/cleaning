@@ -1,10 +1,15 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import admin from '@/lib/firebase-admin';
+import clientPromise from '@/lib/mongodb';
 
-const emailSchema = z.object({
+const createProviderSchema = z.object({
+  name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  phone: z.string().min(10),
+  commissionPercentage: z.number().min(0).max(100),
 });
 
 async function sendProviderCredentialsEmail(email: string, password: string) {
@@ -49,18 +54,52 @@ async function sendProviderCredentialsEmail(email: string, password: string) {
 export async function POST(request: Request) {
   try {
     const json = await request.json();
-    const data = emailSchema.parse(json);
+    const data = createProviderSchema.parse(json);
 
+    // 1. Create user in Firebase Auth using Admin SDK
+    const userRecord = await admin.auth().createUser({
+      email: data.email,
+      password: data.password,
+      displayName: data.name,
+      emailVerified: true, // Providers are created by admin, so we can assume verified.
+    });
+
+    // 2. Create provider profile in MongoDB
+    const client = await clientPromise;
+    const db = client.db();
+    const usersCollection = db.collection('users');
+
+    const profileData = {
+        uid: userRecord.uid,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        notificationPreference: 'email',
+        school: 'N/A', // Providers aren't tied to a school/building directly
+        roomSize: 'N/A',
+        role: 'provider',
+        commissionPercentage: data.commissionPercentage,
+        createdAt: new Date(),
+    };
+
+    await usersCollection.insertOne(profileData);
+    
+    // 3. Send credentials email
     await sendProviderCredentialsEmail(data.email, data.password);
 
-    return NextResponse.json({ message: 'Provider credential email sent successfully' }, { status: 200 });
+    return NextResponse.json({ message: 'Provider account created successfully', uid: userRecord.uid }, { status: 201 });
 
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
     
-    console.error('Error sending provider email:', error);
+    // Handle Firebase-specific errors
+    if (error.code === 'auth/email-already-exists') {
+        return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    
+    console.error('Error creating provider:', error);
     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
