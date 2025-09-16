@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
 import clientPromise from '@/lib/mongodb';
+import { config } from 'dotenv';
+
+config(); // Load environment variables
 
 const createProviderSchema = z.object({
   name: z.string().min(2),
