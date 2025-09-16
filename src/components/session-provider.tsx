@@ -21,6 +21,20 @@ const authRoutes = ['/sign-in', '/sign-up', '/'];
 const adminRoutePrefix = '/admin';
 const providerRoutePrefix = '/provider';
 
+// Helper function to fetch the profile with retries
+const fetchProfileWithRetry = async (uid: string, retries = 3, delay = 500): Promise<UserProfile | null> => {
+  for (let i = 0; i < retries; i++) {
+    const response = await fetch(`/api/users/${uid}`);
+    if (response.ok) {
+      return response.json();
+    }
+    // Wait before retrying
+    await new Promise(res => setTimeout(res, delay));
+  }
+  return null;
+}
+
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -33,15 +47,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
-        const response = await fetch(`/api/users/${firebaseUser.uid}`);
+        const profileData = await fetchProfileWithRetry(firebaseUser.uid);
         
-        if (response.ok) {
-            const profileData = await response.json();
+        if (profileData) {
             setProfile(profileData);
         } else {
             // This can occur if DB entry fails after signup.
             // Signing them out forces a clean slate.
-            console.error("Profile not found for authenticated user, signing out.");
+            console.error("Profile not found for authenticated user after retries, signing out.");
             await auth.signOut();
             setUser(null);
             setProfile(null);
@@ -130,5 +143,3 @@ export function useSession() {
   }
   return context;
 }
-
-    
