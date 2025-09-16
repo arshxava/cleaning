@@ -8,6 +8,7 @@ const complaintSchema = z.object({
   userId: z.string(),
   user: z.string(),
   building: z.string(),
+  complaintType: z.enum(['damage', 'service_quality']),
   complaint: z.string(),
   imageUrl: z.string().url().optional(),
   bookingId: z.string().optional(),
@@ -23,6 +24,7 @@ async function sendComplaintNotificationEmail(complaintData: any, providerEmail:
         <p>A new complaint has been submitted. Please review it in the admin dashboard.</p>
         <p><strong>User:</strong> ${complaintData.user}</p>
         <p><strong>Building:</strong> ${complaintData.building}</p>
+        <p><strong>Complaint Type:</strong> ${complaintData.complaintType === 'damage' ? 'Breakage or Damage' : 'Unsatisfactory Service'}</p>
         <p><strong>Assigned Provider:</strong> ${complaintData.provider}</p>
         <p><strong>Complaint Details:</strong></p>
         <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 0;">${complaintData.complaint}</blockquote>
@@ -53,6 +55,7 @@ async function sendComplaintNotificationEmail(complaintData: any, providerEmail:
             <p>A new complaint has been submitted for a job you were assigned to. Please review and respond in your provider dashboard.</p>
             <p><strong>User:</strong> ${complaintData.user}</p>
             <p><strong>Building:</strong> ${complaintData.building}</p>
+            <p><strong>Complaint Type:</strong> ${complaintData.complaintType === 'damage' ? 'Breakage or Damage' : 'Unsatisfactory Service'}</p>
             <p><strong>Complaint Details:</strong></p>
             <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 0;">${complaintData.complaint}</blockquote>
             ${complaintData.imageUrl ? `<p><strong>Image Submitted:</strong> <a href="${complaintData.imageUrl}">View Image</a></p>` : ''}

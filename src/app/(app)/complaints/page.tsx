@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { MessageSquare, Image as ImageIcon, Briefcase, Loader2 } from 'lucide-react';
+import { MessageSquare, Image as ImageIcon, Briefcase, Loader2, AlertCircle } from 'lucide-react';
 import { useSession } from '@/components/session-provider';
 
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const formSchema = z.object({
   bookingId: z.string().optional(),
+  complaintType: z.enum(['damage', 'service_quality'], {
+    required_error: 'Please select the type of complaint.',
+  }),
   complaint: z.string().min(10, 'Please provide at least 10 characters to describe the issue.'),
   image: z.instanceof(File).optional(),
 });
@@ -133,6 +136,7 @@ export default function ComplaintPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: values.bookingId,
+          complaintType: values.complaintType,
           complaint: values.complaint,
           imageUrl: imageUrl,
           userId: user.uid,
@@ -203,6 +207,34 @@ export default function ComplaintPage() {
                     </Select>
                     <FormDescription>
                      Select the booking this complaint is related to, if applicable.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="complaintType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className='flex items-center'>
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      Type of Complaint
+                    </FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select the nature of your issue..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                           <SelectItem value="service_quality">Unsatisfactory Service</SelectItem>
+                           <SelectItem value="damage">Breakage or Damage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                     This helps us route your complaint to the right team.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

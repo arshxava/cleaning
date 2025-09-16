@@ -48,6 +48,7 @@ export type Complaint = {
   userId: string;
   user: string;
   building: string;
+  complaintType: 'damage' | 'service_quality';
   complaint: string; // The text of the complaint
   imageUrl?: string;
   bookingId?: string;

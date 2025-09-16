@@ -6,6 +6,8 @@ import {
   Clock,
   User,
   Building,
+  AlertCircle,
+  ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +36,7 @@ export function ProviderComplaintCard({ complaint, onUpdate }: ProviderComplaint
   const [response, setResponse] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isOverdue = complaint.lastResponseHours > 24;
+  const canProviderResolve = complaint.complaintType === 'service_quality';
 
   const handleSendResponse = async () => {
     if (response.trim().length < 10) {
@@ -100,9 +103,15 @@ export function ProviderComplaintCard({ complaint, onUpdate }: ProviderComplaint
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2 text-sm">
-            <Building className="w-4 h-4 text-muted-foreground" />
-            <span>{complaint.building}</span>
+        <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-muted-foreground" />
+              <span>{complaint.building}</span>
+            </div>
+             <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                <span>Type: <span className="font-medium">{complaint.complaintType === 'damage' ? 'Breakage/Damage' : 'Service Quality'}</span></span>
+            </div>
         </div>
         <p className="text-muted-foreground bg-slate-100 p-4 rounded-md border">
           "{complaint.complaint}"
@@ -124,20 +133,34 @@ export function ProviderComplaintCard({ complaint, onUpdate }: ProviderComplaint
           </div>
         )}
 
-        <div>
-             <Textarea 
-                placeholder={`Write your response to ${complaint.user}...`}
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                rows={4}
-             />
-        </div>
+        {canProviderResolve ? (
+            <div>
+                 <Textarea 
+                    placeholder={`Write your response to ${complaint.user}...`}
+                    value={response}
+                    onChange={(e) => setResponse(e.target.value)}
+                    rows={4}
+                 />
+            </div>
+        ) : (
+            <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded-r-md">
+                <div className="flex items-start">
+                    <ShieldAlert className="h-5 w-5 mr-3 mt-1 text-yellow-600" />
+                    <div>
+                        <h4 className="font-bold">Admin Action Required</h4>
+                        <p className="text-sm">This complaint involves potential damages and must be handled by an administrator.</p>
+                    </div>
+                </div>
+            </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={handleSendResponse} disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Sending...' : 'Send Response & Resolve'}
-        </Button>
+        {canProviderResolve && (
+            <Button onClick={handleSendResponse} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'Sending...' : 'Send Response & Resolve'}
+            </Button>
+        )}
       </CardFooter>
     </Card>
   );
