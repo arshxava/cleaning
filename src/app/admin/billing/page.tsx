@@ -60,7 +60,12 @@ export default function BillingPage() {
 
   const fetchBillingData = async () => {
     try {
-      setLoading(true);
+      // Don't setLoading(true) on refetch to avoid UI flicker
+      if (loading === false) {
+          // just let it silently update
+      } else {
+          setLoading(true);
+      }
 
       const [providersRes, bookingsRes, requestsRes] = await Promise.all([
         fetch('/api/users'),
@@ -147,14 +152,13 @@ export default function BillingPage() {
     
     doc.autoTable({
         startY: 75,
-        head: [['Booking Date', 'Service', 'Client', 'Service Price', 'Provider Earning']],
+        head: [['Booking Date', 'Service', 'Client', 'Provider Earning']],
         body: info.unpaidBookings.map(b => {
             const earning = b.price - (b.price * ((info.provider.commissionPercentage || 0) / 100));
             return [
                 new Date(b.date).toLocaleDateString('en-CA'),
                 b.service,
                 b.userName,
-                `$${b.price.toFixed(2)}`,
                 `$${earning.toFixed(2)}`
             ];
         }),
@@ -166,7 +170,7 @@ export default function BillingPage() {
             textColor: [10, 10, 10]
         },
         foot: [
-          ['', '', '', { content: 'Total Payout Due:', styles: { halign: 'right' } }, { content: `$${info.totalPayoutDue.toFixed(2)}`, styles: { halign: 'right' } }]
+          ['', '', { content: 'Total Payout Due:', styles: { halign: 'right' } }, { content: `$${info.totalPayoutDue.toFixed(2)}`, styles: { halign: 'right' } }]
         ]
     });
     
@@ -237,7 +241,7 @@ export default function BillingPage() {
         });
         
         // 3. Refresh data on success
-        fetchBillingData();
+        await fetchBillingData();
 
      } catch (error) {
          toast({
@@ -404,3 +408,5 @@ export default function BillingPage() {
     </>
   );
 }
+
+    
