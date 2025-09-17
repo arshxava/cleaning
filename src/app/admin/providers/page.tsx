@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 
 
 import { Button } from '@/components/ui/button';
@@ -125,30 +123,15 @@ export default function ProvidersPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      // 2. Create provider profile in your database via API
-      const profileResponse = await fetch('/api/users/ensure-profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              uid: user.uid,
-              name: values.name,
-              email: values.email,
-              phone: values.phone,
-              notificationPreference: 'email',
-              school: 'N/A', // Providers aren't tied to a school/building directly
-              roomSize: 'N/A',
-              role: 'provider',
-              commissionPercentage: values.commissionPercentage,
-          }),
+      const response = await fetch('/api/admin/create-provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
       });
 
-      if (!profileResponse.ok) {
-          const errorData = await profileResponse.json();
-          throw new Error(errorData.message || 'Failed to save user profile.');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create provider account.');
       }
       
       toast({
@@ -159,13 +142,11 @@ export default function ProvidersPage() {
       fetchInitialData(); // Refresh list
 
     } catch (error: any) {
-      let description = "An unexpected error occurred. Please try again.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "This email is already in use. Please try another email.";
-        form.setError("email", { type: "manual", message: description });
-      } else {
-        description = error.message;
+      let description = error.message || "An unexpected error occurred. Please try again.";
+      if (error.message.includes("email already exists")) {
+        form.setError("email", { type: "manual", message: "This email is already in use." });
       }
+      
       toast({
         variant: 'destructive',
         title: 'Creation Failed',
@@ -353,5 +334,3 @@ export default function ProvidersPage() {
     </>
   );
 }
-
-    
