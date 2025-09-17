@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -11,8 +12,8 @@ const profileSchema = z.object({
   email: z.string().email(),
   phone: z.string(),
   notificationPreference: z.enum(['email']),
-  school: z.string(),
-  roomSize: z.string(),
+  school: z.string().optional(),
+  roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']),
   commissionPercentage: z.number().optional(),
 });

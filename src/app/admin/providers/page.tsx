@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 
 import { Button } from '@/components/ui/button';
@@ -76,6 +78,7 @@ export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user: adminUser, profile: adminProfile } = useSession();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -122,19 +125,42 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!adminUser || !adminProfile) {
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Admin session not found.' });
+      return;
+    }
+    
+    // Hold onto the current admin user's credentials
+    const currentAdmin = auth.currentUser;
+    if (!currentAdmin) {
+       toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not verify admin session.' });
+       return;
+    }
+
     try {
-      const response = await fetch('/api/admin/create-provider', {
+      // 1. Create the new provider user
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const providerUser = userCredential.user;
+
+      // 2. Create the provider's profile in the database
+      const profileResponse = await fetch('/api/users/ensure-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          uid: providerUser.uid,
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+          notificationPreference: 'email',
+          role: 'provider',
+          commissionPercentage: values.commissionPercentage,
+        }),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to create provider account.');
-      }
       
+      if (!profileResponse.ok) {
+        throw new Error('Failed to save provider profile.');
+      }
+
       toast({
           title: 'Provider Account Created',
           description: `An account for ${values.name} has been created.`,
@@ -145,8 +171,9 @@ export default function ProvidersPage() {
 
     } catch (error: any) {
        let description = error.message || "An unexpected error occurred. Please try again.";
-       if (error.message.includes("already exists")) {
+       if (error.code === 'auth/email-already-in-use') {
          form.setError("email", { type: "manual", message: "This email is already taken." });
+         description = "This email is already in use.";
        }
       
       toast({
@@ -154,7 +181,9 @@ export default function ProvidersPage() {
         title: 'Creation Failed',
         description,
       });
-
+    } finally {
+       // 3. IMPORTANT: Re-sign in as the admin user to restore the session
+       await auth.updateCurrentUser(currentAdmin);
     }
   }
 
