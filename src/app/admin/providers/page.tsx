@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 
 
 import { Button } from '@/components/ui/button';
@@ -78,8 +76,6 @@ export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user: adminUser } = useSession();
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -126,41 +122,17 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!adminUser) {
-        toast({variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in as an admin.'});
-        return;
-    }
-    
-    // Temporarily store admin credentials to re-login
-    const adminEmail = adminUser.email;
-    const adminToken = await adminUser.getIdToken();
-
-
     try {
-      // 1. Create provider user in Firebase Auth (this will sign out the admin)
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const providerUser = userCredential.user;
-
-      // 2. Create provider profile in your database
-      const profileResponse = await fetch('/api/users/ensure-profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              uid: providerUser.uid,
-              name: values.name,
-              email: values.email,
-              phone: values.phone,
-              notificationPreference: 'email',
-              school: 'N/A',
-              roomSize: 'N/A',
-              role: 'provider',
-              commissionPercentage: values.commissionPercentage,
-          }),
+      const response = await fetch('/api/admin/create-provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
       });
 
-      if (!profileResponse.ok) {
-          await providerUser.delete(); // Attempt to clean up Firebase user
-          throw new Error('Failed to save provider profile.');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create provider account.');
       }
       
       toast({
@@ -168,19 +140,12 @@ export default function ProvidersPage() {
           description: `An account for ${values.name} has been created.`,
       });
 
-      // 3. Re-authenticate the admin
-      // This part is tricky and not perfectly seamless. The session provider should handle the redirect.
-      // For now, we will just sign out the new user and let the session provider redirect the admin.
-      await auth.signOut();
-
-
       form.reset();
       fetchInitialData(); // Refresh list
 
     } catch (error: any) {
        let description = error.message || "An unexpected error occurred. Please try again.";
-       if (error.code === 'auth/email-already-in-use') {
-         description = "This email is already in use.";
+       if (error.message.includes("already exists")) {
          form.setError("email", { type: "manual", message: "This email is already taken." });
        }
       
@@ -372,5 +337,3 @@ export default function ProvidersPage() {
     </>
   );
 }
-
-    

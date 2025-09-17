@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
@@ -51,9 +53,6 @@ export async function POST(request: Request) {
     };
     await db.collection('users').insertOne(profileData);
     
-    // Note: We are not sending a credentials email here as Firebase Auth handles this.
-    // However, if custom emails are needed, this would be the place to trigger them.
-
     return NextResponse.json({ message: 'Provider account created successfully' }, { status: 201 });
 
   } catch (error: any) {
