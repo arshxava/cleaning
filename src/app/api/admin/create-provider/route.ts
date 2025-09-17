@@ -1,9 +1,9 @@
 
+import 'dotenv/config';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
 import clientPromise from '@/lib/mongodb';
-import 'dotenv/config';
 
 const createProviderSchema = z.object({
   email: z.string().email(),
