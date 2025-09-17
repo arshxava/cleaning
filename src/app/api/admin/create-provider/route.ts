@@ -1,5 +1,4 @@
 
-import 'dotenv/config';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
