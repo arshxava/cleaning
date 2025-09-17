@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
 import clientPromise from '@/lib/mongodb';
+import 'dotenv/config';
 
 const createProviderSchema = z.object({
   email: z.string().email(),
@@ -64,6 +65,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
     console.error('Error creating provider:', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
