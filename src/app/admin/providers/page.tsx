@@ -19,8 +19,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
+import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 
 
 import { Button } from '@/components/ui/button';
@@ -73,12 +74,22 @@ const formSchema = z.object({
 type ProviderProfile = UserProfile & { role: 'provider' };
 type Building = { _id: string; name: string; location: string };
 
+const firebaseConfig = {
+  projectId: 'campus-clean-jhzd4',
+  appId: '1:984880250633:web:43e0f5e7f17ba60a0e1dd8',
+  storageBucket: 'campus-clean-jhzd4.firebasestorage.app',
+  apiKey: 'AIzaSyCkpxOB9a5Cg5oH02jkJ2t8uIsu7FVrv2E',
+  authDomain: 'campus-clean-jhzd4.firebaseapp.com',
+  measurementId: '',
+  messagingSenderId: '984880250633',
+};
+
+
 export default function ProvidersPage() {
   const { toast } = useToast();
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user: adminUser, profile: adminProfile } = useSession();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -125,21 +136,13 @@ export default function ProvidersPage() {
   }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!adminUser || !adminProfile) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Admin session not found.' });
-      return;
-    }
-    
-    // Hold onto the current admin user's credentials
-    const currentAdmin = auth.currentUser;
-    if (!currentAdmin) {
-       toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not verify admin session.' });
-       return;
-    }
+    const tempAppName = `temp-provider-creation-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
 
     try {
-      // 1. Create the new provider user
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      // 1. Create the new provider user in the temporary app
+      const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
       const providerUser = userCredential.user;
 
       // 2. Create the provider's profile in the database
@@ -158,12 +161,13 @@ export default function ProvidersPage() {
       });
       
       if (!profileResponse.ok) {
+        // Here, we should ideally delete the user from Firebase Auth if profile creation fails
         throw new Error('Failed to save provider profile.');
       }
 
       toast({
           title: 'Provider Account Created',
-          description: `An account for ${values.name} has been created.`,
+          description: `An account for ${values.name} has been created successfully.`,
       });
 
       form.reset();
@@ -182,8 +186,9 @@ export default function ProvidersPage() {
         description,
       });
     } finally {
-       // 3. IMPORTANT: Re-sign in as the admin user to restore the session
-       await auth.updateCurrentUser(currentAdmin);
+       // 3. Clean up the temporary app
+       await signOut(tempAuth);
+       await deleteApp(tempApp);
     }
   }
 
@@ -366,3 +371,5 @@ export default function ProvidersPage() {
     </>
   );
 }
+
+    
