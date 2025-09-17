@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -157,17 +158,39 @@ export default function ProvidersPage() {
           notificationPreference: 'email',
           role: 'provider',
           commissionPercentage: values.commissionPercentage,
+          school: 'N/A', // Providers aren't tied to a school/building directly
+          roomSize: 'N/A',
         }),
       });
       
       if (!profileResponse.ok) {
-        // Here, we should ideally delete the user from Firebase Auth if profile creation fails
         throw new Error('Failed to save provider profile.');
+      }
+      
+      // 3. Send welcome email with credentials
+      const emailResponse = await fetch('/api/admin/send-provider-welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              name: values.name,
+              email: values.email,
+              password: values.password
+          })
+      });
+
+      if (!emailResponse.ok) {
+        // Log a warning but don't block the success message
+        console.warn("Welcome email could not be sent.");
+        toast({
+            variant: 'destructive',
+            title: 'Warning: Email Not Sent',
+            description: 'Provider account was created, but the welcome email could not be sent.'
+        });
       }
 
       toast({
           title: 'Provider Account Created',
-          description: `An account for ${values.name} has been created successfully.`,
+          description: `An account for ${values.name} has been created and their credentials have been emailed.`,
       });
 
       form.reset();
@@ -186,7 +209,7 @@ export default function ProvidersPage() {
         description,
       });
     } finally {
-       // 3. Clean up the temporary app
+       // Clean up the temporary app
        await signOut(tempAuth);
        await deleteApp(tempApp);
     }
@@ -371,5 +394,7 @@ export default function ProvidersPage() {
     </>
   );
 }
+
+    
 
     
