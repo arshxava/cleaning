@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
+import admin from 'firebase-admin';
 
 // This schema defines the expected shape of the data for creating a user profile.
 const profileSchema = z.object({
