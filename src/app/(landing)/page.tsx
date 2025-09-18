@@ -104,7 +104,7 @@ export default function SignUpPage() {
       const user = userCredential.user;
 
       // 2. Create user profile in your database via API
-      // This will also trigger the verification email from the backend.
+      // This will also trigger the welcome email from the backend.
       const profileResponse = await fetch('/api/users/ensure-profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -128,14 +128,11 @@ export default function SignUpPage() {
       }
       
       toast({
-          title: 'Account Created!',
-          description: 'A verification email has been sent. Please verify your email to log in.',
+          title: 'Account Created Successfully!',
+          description: "Welcome! You're now logged in.",
       });
-      
-      // Sign the user out so they have to verify before logging in
-      await auth.signOut();
 
-      router.push('/sign-in');
+      router.push('/dashboard');
 
     } catch (error: any) {
       console.error("Sign up error:", error);

@@ -18,23 +18,13 @@ const profileSchema = z.object({
   commissionPercentage: z.number().optional(),
 });
 
-async function sendCustomVerificationEmail(email: string, name: string) {
-    // This function will be implemented in a subsequent step.
-    // For now, it will just log to the console.
-    console.log(`TODO: Send verification email to ${email} for user ${name}`);
-
-     const subject = `Welcome to A+ Cleaning Solutions! Please Verify Your Email`;
-     const verificationLink = `${process.env.NEXT_PUBLIC_BASE_URL}/verify-email`; // This will be dynamic with a code
-
+async function sendWelcomeEmail(email: string, name: string) {
+     const subject = `Welcome to A+ Cleaning Solutions!`;
      const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h1 style="color: #333;">Welcome, ${name}!</h1>
-        <p>Thank you for signing up for A+ Cleaning Solutions. Please verify your email address to activate your account.</p>
-        <p>
-            <a href="${verificationLink}" style="background-color: #90EE90; color: #000; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            Verify Your Email
-            </a>
-        </p>
+        <p>Thank you for signing up for A+ Cleaning Solutions. Your account has been created successfully.</p>
+        <p>You can now log in and start booking our cleaning services.</p>
         <p>If you did not create an account, no further action is required.</p>
         <p>Thanks,</p>
         <p>The A+ Cleaning Solutions Team</p>
@@ -49,10 +39,10 @@ async function sendCustomVerificationEmail(email: string, name: string) {
         });
         if (!response.ok) {
              const errorBody = await response.text();
-             console.error("API call to /api/send-email failed for verification:", response.status, errorBody);
+             console.error("API call to /api/send-email failed for welcome email:", response.status, errorBody);
         }
     } catch(error) {
-        console.error("Fetch call to /api/send-email failed for verification:", error);
+        console.error("Fetch call to /api/send-email failed for welcome email:", error);
     }
 }
 
@@ -81,9 +71,9 @@ export async function POST(request: Request) {
       { upsert: true }
     );
     
-    // If a new user profile was created, send the verification email.
+    // If a new user profile was created, send the welcome email.
     if (result.upsertedCount > 0 && data.role === 'user') {
-        await sendCustomVerificationEmail(data.email, data.name);
+        await sendWelcomeEmail(data.email, data.name);
     }
 
 
@@ -101,5 +91,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
-
-    
