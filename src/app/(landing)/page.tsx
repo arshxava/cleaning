@@ -132,6 +132,9 @@ export default function SignUpPage() {
           description: 'A verification email has been sent. Please verify your email to log in.',
       });
       
+      // Sign the user out so they have to verify before logging in
+      await auth.signOut();
+
       router.push('/sign-in');
 
     } catch (error: any) {

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +47,33 @@ export default function SignInPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
+
+      // For password-based accounts, check if email is verified.
+      // Roles like 'provider' or 'admin' created by an admin are exempt.
+      if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
+          const profileRes = await fetch(`/api/users/${user.uid}`);
+          if (profileRes.ok) {
+              const profile: UserProfile = await profileRes.json();
+              if (profile.role === 'user') {
+                 await signOut(auth);
+                 toast({
+                    variant: 'destructive',
+                    title: 'Email Not Verified',
+                    description: 'Please check your inbox and verify your email before signing in.',
+                });
+                return;
+              }
+          } else {
+             // If profile doesn't exist for some reason, and they used password, enforce verification
+             await signOut(auth);
+             toast({
+                variant: 'destructive',
+                title: 'Email Not Verified',
+                description: 'Please check your inbox and verify your email before signing in.',
+            });
+            return;
+          }
+      }
 
       // Fetch user profile to check role
       const response = await fetch(`/api/users/${user.uid}`);
