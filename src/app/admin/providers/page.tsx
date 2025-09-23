@@ -3,20 +3,19 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
 import {
   User,
   Mail,
-  Building as BuildingIcon,
   Phone,
   HardHat,
-  Calendar as CalendarIcon,
-  Check,
-  ChevronsUpDown,
   Lock,
   Percent,
+  MoreVertical,
+  Edit,
+  Trash,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
@@ -43,22 +42,33 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import { cn } from '@/lib/utils';
-import { useSession } from '@/components/session-provider';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -71,6 +81,13 @@ const formSchema = z.object({
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
+
+const updateFormSchema = z.object({
+  name: z.string().min(2, 'Name is required.'),
+  phone: z.string().min(10, 'Phone is required.'),
+  commissionPercentage: z.coerce.number().min(0).max(100),
+});
+
 
 type ProviderProfile = UserProfile & { role: 'provider' };
 type Building = { _id: string; name: string; location: string };
@@ -86,10 +103,167 @@ const firebaseConfig = {
 };
 
 
+const ProviderCard = ({ provider, onUpdate }: { provider: ProviderProfile; onUpdate: () => void }) => {
+  const { toast } = useToast();
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const form = useForm<z.infer<typeof updateFormSchema>>({
+    resolver: zodResolver(updateFormSchema),
+    defaultValues: {
+      name: provider.name,
+      phone: provider.phone,
+      commissionPercentage: provider.commissionPercentage ?? 10,
+    },
+  });
+
+  const handleUpdateProvider = async (values: z.infer<typeof updateFormSchema>) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/users/${provider.uid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      if (!response.ok) throw new Error('Failed to update provider.');
+      toast({ title: 'Success', description: 'Provider updated successfully.' });
+      setIsEditOpen(false);
+      onUpdate();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProvider = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/users/${provider.uid}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete provider.');
+      toast({ title: 'Success', description: 'Provider deleted successfully.' });
+      onUpdate();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-semibold">{provider.name}</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                <Mail className="h-3 w-3" /> {provider.email}
+              </p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" /> Edit Provider
+                </DropdownMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                      <Trash className="mr-2 h-4 w-4" /> Delete Provider
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the provider's account and all associated data. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteProvider} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium">Phone:</span> {provider.phone} | <span className="font-medium">Commission:</span> {provider.commissionPercentage ?? 'N/A'}%
+          </p>
+        </CardContent>
+      </Card>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Provider</DialogTitle>
+            <DialogDescription>Update the details for {provider.name}.</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpdateProvider)} className="space-y-4 py-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provider Name</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="commissionPercentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Commission Percentage</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+
 export default function ProvidersPage() {
   const { toast } = useToast();
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
-  const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -106,20 +280,13 @@ export default function ProvidersPage() {
 
   const fetchInitialData = async () => {
     try {
-      setLoading(true);
-      const [providersRes, buildingsRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/buildings'),
-      ]);
+      if (!loading) setLoading(true);
+      const providersRes = await fetch('/api/users');
 
       if (!providersRes.ok) throw new Error('Failed to fetch providers');
       const allUsers: UserProfile[] = await providersRes.json();
       const providerUsers = allUsers.filter(user => user.role === 'provider') as ProviderProfile[];
       setProviders(providerUsers);
-
-      if (!buildingsRes.ok) throw new Error('Failed to fetch buildings');
-      const buildingsData = await buildingsRes.json();
-      setBuildings(buildingsData);
 
     } catch (error) {
       toast({
@@ -142,11 +309,9 @@ export default function ProvidersPage() {
     const tempAuth = getAuth(tempApp);
 
     try {
-      // 1. Create the new provider user in the temporary app
       const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
       const providerUser = userCredential.user;
 
-      // 2. Create the provider's profile in the database
       const profileResponse = await fetch('/api/users/ensure-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,7 +323,7 @@ export default function ProvidersPage() {
           notificationPreference: 'email',
           role: 'provider',
           commissionPercentage: values.commissionPercentage,
-          school: 'N/A', // Providers aren't tied to a school/building directly
+          school: 'N/A', 
           roomSize: 'N/A',
         }),
       });
@@ -167,7 +332,6 @@ export default function ProvidersPage() {
         throw new Error('Failed to save provider profile.');
       }
       
-      // 3. Send welcome email with credentials
       const emailResponse = await fetch('/api/admin/send-provider-welcome', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -179,7 +343,6 @@ export default function ProvidersPage() {
       });
 
       if (!emailResponse.ok) {
-        // Log a warning but don't block the success message
         console.warn("Welcome email could not be sent.");
         toast({
             variant: 'destructive',
@@ -194,7 +357,7 @@ export default function ProvidersPage() {
       });
 
       form.reset();
-      fetchInitialData(); // Refresh list
+      fetchInitialData(); 
 
     } catch (error: any) {
        let description = error.message || "An unexpected error occurred. Please try again.";
@@ -209,7 +372,6 @@ export default function ProvidersPage() {
         description,
       });
     } finally {
-       // Clean up the temporary app
        await signOut(tempAuth);
        await deleteApp(tempApp);
     }
@@ -356,30 +518,7 @@ export default function ProvidersPage() {
                   </>
                 ) : providers.length > 0 ? (
                   providers.map((provider) => (
-                    <div
-                      key={provider.uid}
-                      className="flex flex-col items-start justify-between p-4 border rounded-lg gap-4"
-                    >
-                      <div className="w-full">
-                        <div className='flex justify-between w-full'>
-                            <div>
-                                <p className="font-semibold">{provider.name}</p>
-                                <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                <Mail className="h-3 w-3" /> {provider.email}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <Phone className="h-3 w-3" /> {provider.phone}
-                                </p>
-                                <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                <CalendarIcon className="h-3 w-3" /> Joined on{' '}
-                                {new Date(provider.createdAt).toLocaleDateString()}
-                                </p>
-                            </div>
-                        </div>
-                      </div>
-                    </div>
+                    <ProviderCard key={provider.uid} provider={provider} onUpdate={fetchInitialData} />
                   ))
                 ) : (
                   <div className="text-center text-muted-foreground bg-slate-50 py-8 rounded-md">
@@ -394,7 +533,3 @@ export default function ProvidersPage() {
     </>
   );
 }
-
-    
-
-    
