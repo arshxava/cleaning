@@ -2,10 +2,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { Building as BuildingIcon, Home, HardHat, DollarSign, Sparkles, Trash, PlusCircle, Layers, MapPin } from 'lucide-react';
+import { Building as BuildingIcon, Home, HardHat, DollarSign, Sparkles, Trash, PlusCircle, Layers, MapPin, Edit, MoreVertical } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +31,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { UserProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 const availableServices = [
@@ -71,10 +74,92 @@ type Building = {
 type ProviderProfile = UserProfile & { role: 'provider' };
 
 
-const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { building: Building, providers: ProviderProfile[], onAssignmentChange: () => void }) => {
+const BuildingForm = ({ form, onSubmit, isSubmitting }: { form: UseFormReturn<z.infer<typeof formSchema>>, onSubmit: (values: z.infer<typeof formSchema>) => void, isSubmitting: boolean }) => {
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "roomTypes"
+    });
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Building Name</FormLabel>
+                    <FormControl><div className="relative"><BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Chestnut Residence" {...field} className="pl-10" /></div></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="location" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl><div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Toronto, ON" {...field} className="pl-10" /></div></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="floors" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Number of Floors</FormLabel>
+                    <FormControl><div className="relative"><Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="e.g., 12" {...field} className="pl-10" /></div></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+                <Separator />
+                <div>
+                    <h3 className="text-lg font-medium mb-4">Room Types & Pricing</h3>
+                    <div className="space-y-6">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="p-4 border rounded-md relative space-y-4">
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => remove(index)}><Trash className="h-4 w-4" /></Button>
+                            <FormField control={form.control} name={`roomTypes.${index}.name`} render={({ field }) => (
+                                <FormItem><FormLabel>Room Type Name</FormLabel><FormControl><Input placeholder="e.g., Single Dorm" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name={`roomTypes.${index}.count`} render={({ field }) => (
+                                <FormItem><FormLabel>Number of Rooms</FormLabel><FormControl><Input type="number" placeholder="e.g., 50" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <div className='space-y-2'>
+                                <p className='text-sm font-medium'>Service Prices (CAD)</p>
+                                {availableServices.map(service => (
+                                    <FormField key={service.id} control={form.control} name={`roomTypes.${index}.prices.${service.id}`} render={({ field }) => (
+                                        <FormItem className="flex items-center gap-4 space-y-0">
+                                            <FormLabel className="w-1/3 min-w-[120px] text-sm font-normal text-muted-foreground">{service.label}</FormLabel>
+                                            <FormControl><div className="relative w-full"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="0.00" {...field} className="pl-10" /></div></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => append({ name: '', count: 1, prices: { standard: 0, deep: 0, 'move-out': 0 }})}><PlusCircle className="mr-2 h-4 w-4" /> Add Room Type</Button>
+                </div>
+                <DialogFooter>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+}
+
+const ExistingBuildingCard = ({ building, providers, onAssignmentChange, onBuildingUpdate }: { building: Building, providers: ProviderProfile[], onAssignmentChange: () => void, onBuildingUpdate: () => void }) => {
     const { toast } = useToast();
     const [selectedProvider, setSelectedProvider] = useState(building.assignedProvider || 'unassigned');
     const [isSaving, setIsSaving] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            name: building.name,
+            location: building.location,
+            floors: building.floors,
+            roomTypes: building.roomTypes
+        },
+    });
 
     const handleSaveAssignment = async () => {
         setIsSaving(true);
@@ -91,11 +176,46 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { bui
             });
             if (!response.ok) throw new Error("Failed to save assignment.");
             toast({ title: "Success", description: `Assignment for ${building.name} updated.` });
-            onAssignmentChange(); // Notify parent to refetch
+            onAssignmentChange(); 
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
         } finally {
             setIsSaving(false);
+        }
+    }
+    
+    const handleUpdateBuilding = async (values: z.infer<typeof formSchema>) => {
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/buildings?id=${building._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+             if (!response.ok) throw new Error("Failed to update building.");
+             toast({ title: "Success", description: "Building updated successfully." });
+             setIsEditOpen(false);
+             onBuildingUpdate();
+        } catch(error) {
+             toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsSaving(false);
+        }
+    }
+    
+    const handleDeleteBuilding = async () => {
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/buildings?id=${building._id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) throw new Error("Failed to delete building.");
+            toast({ title: "Success", description: "Building deleted." });
+            onBuildingUpdate(); // Refreshes the list
+        } catch (error) {
+             toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsDeleting(false);
         }
     }
 
@@ -103,8 +223,47 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { bui
     return (
         <Card>
             <CardHeader>
-            <CardTitle>{building.name}</CardTitle>
-            <CardDescription>{building.location} - {building.floors} floors</CardDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle>{building.name}</CardTitle>
+                    <CardDescription>{building.location} - {building.floors} floors</CardDescription>
+                </div>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-8 w-8">
+                             <MoreVertical className="h-4 w-4" />
+                         </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                         <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
+                             <Edit className="mr-2 h-4 w-4" />
+                             Edit Building
+                         </DropdownMenuItem>
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                                     <Trash className="mr-2 h-4 w-4" />
+                                     Delete Building
+                                 </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the building and all associated data.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteBuilding} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
             </CardHeader>
             <CardContent className="space-y-4">
             {building.roomTypes.map((room, index) => (
@@ -141,6 +300,20 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange }: { bui
                     {isSaving ? "Saving..." : "Save"}
                  </Button>
             </CardFooter>
+            
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                 <DialogContent className="max-w-3xl">
+                     <DialogHeader>
+                         <DialogTitle>Edit Building</DialogTitle>
+                         <DialogDescription>
+                            Make changes to {building.name}. Click save when you're done.
+                         </DialogDescription>
+                     </DialogHeader>
+                     <div className="py-4 max-h-[70vh] overflow-y-auto pr-4">
+                         <BuildingForm form={form} onSubmit={handleUpdateBuilding} isSubmitting={isSaving} />
+                     </div>
+                 </DialogContent>
+            </Dialog>
         </Card>
     )
 }
@@ -168,7 +341,8 @@ export default function BuildingsPage() {
 
   const fetchInitialData = async () => {
     try {
-      setLoading(true);
+      // Don't set loading to true on refetch
+      if (loading) setLoading(true);
       const [buildingsRes, providersRes] = await Promise.all([
          fetch('/api/buildings'),
          fetch('/api/users')
@@ -233,7 +407,7 @@ export default function BuildingsPage() {
           Manage Buildings
         </h1>
         <p className="text-muted-foreground mt-2">
-          Add new buildings and assign service providers.
+          Add new buildings, edit details, and assign service providers.
         </p>
       </div>
 
@@ -330,6 +504,7 @@ export default function BuildingsPage() {
                         building={building}
                         providers={providers}
                         onAssignmentChange={fetchInitialData}
+                        onBuildingUpdate={fetchInitialData}
                     />
                   ))
                 ) : (

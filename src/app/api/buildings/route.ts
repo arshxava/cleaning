@@ -21,7 +21,7 @@ const buildingSchema = z.object({
   roomTypes: z.array(roomTypeSchema).min(1),
 });
 
-const updateBuildingSchema = z.object({
+const updateProviderSchema = z.object({
   buildingId: z.string(),
   providerName: z.string(),
 });
@@ -78,7 +78,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const json = await request.json();
-    const { buildingId, providerName } = updateBuildingSchema.parse(json);
+    const { buildingId, providerName } = updateProviderSchema.parse(json);
     
     if (!ObjectId.isValid(buildingId)) {
         return NextResponse.json({ message: 'Invalid building ID' }, { status: 400 });
@@ -105,4 +105,63 @@ export async function PATCH(request: Request) {
     console.error('Error assigning provider:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id || !ObjectId.isValid(id)) {
+        return NextResponse.json({ message: 'Invalid building ID' }, { status: 400 });
+    }
+
+    const json = await request.json();
+    const data = buildingSchema.parse(json);
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    const result = await db.collection('buildings').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: data }
+    );
+    
+    if (result.matchedCount === 0) {
+        return NextResponse.json({ message: 'Building not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Building updated successfully' }, { status: 200 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+    }
+    console.error('Error updating building:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id || !ObjectId.isValid(id)) {
+            return NextResponse.json({ message: 'Invalid building ID' }, { status: 400 });
+        }
+
+        const client = await clientPromise;
+        const db = client.db();
+
+        const result = await db.collection('buildings').deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+            return NextResponse.json({ message: 'Building not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ message: 'Building deleted successfully' }, { status: 200 });
+    } catch (error) {
+        console.error('Error deleting building:', error);
+        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    }
 }
