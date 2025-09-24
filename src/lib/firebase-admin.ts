@@ -1,17 +1,13 @@
-
 import admin from 'firebase-admin';
-
+import serviceAccount from '../../firebaseServiceAccount.json'; 
 if (!admin.apps.length) {
   try {
-    const serviceAccount: admin.ServiceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    };
-    
+    // Initialize Firebase admin using the JSON
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
+
+    console.log('Firebase admin initialized successfully');
   } catch (error) {
     console.error('Firebase admin initialization error', error);
   }
