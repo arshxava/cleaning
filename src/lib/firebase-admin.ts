@@ -3,14 +3,22 @@ import admin from 'firebase-admin';
 // Check if the app is already initialized to prevent errors
 if (!admin.apps.length) {
   try {
-    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccountEnv) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error('FIREBASE_PRIVATE_KEY environment variable is not set.');
     }
-    
-    // Replace escaped newlines from environment variable before parsing
-    const serviceAccountJson = serviceAccountEnv.replace(/\\n/g, '\n');
-    const serviceAccount = JSON.parse(serviceAccountJson);
+
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // The private key needs to have its escaped newlines replaced with actual newlines.
+      privateKey: privateKey.replace(/\\n/g, '\n'),
+    };
+
+    // Ensure all required fields are present
+    if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        throw new Error('One or more Firebase Admin environment variables are missing.');
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
