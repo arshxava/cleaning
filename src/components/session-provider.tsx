@@ -81,9 +81,9 @@ const pathIsPublic = pathname ? publicRoutes.includes(pathname) : false;
     }
 
     if (user && profile) {
-      const pathIsAuth = authRoutes.includes(pathname);
-      const pathIsAdmin = pathname.startsWith(adminRoutePrefix);
-      const pathIsProvider = pathname.startsWith(providerRoutePrefix);
+      const pathIsAuth = pathname ? authRoutes.includes(pathname) : false;
+const pathIsAdmin = pathname ? pathname.startsWith(adminRoutePrefix) : false;
+const pathIsProvider = pathname ? pathname.startsWith(providerRoutePrefix) : false;
 
       if (pathIsAuth) {
         if (profile.role === 'admin') router.push('/admin/complaints');
