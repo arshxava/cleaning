@@ -104,7 +104,7 @@ const pathIsProvider = pathname ? pathname.startsWith(providerRoutePrefix) : fal
     }
   }, [user, profile, loading, router, pathname]);
   
-  const pathIsPublic = publicRoutes.includes(pathname);
+const pathIsPublic = pathname ? publicRoutes.includes(pathname) : false;
   if (loading && !pathIsPublic) {
     return (
         <div className="flex flex-col min-h-screen">
