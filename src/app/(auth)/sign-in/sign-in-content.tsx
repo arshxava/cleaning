@@ -32,7 +32,7 @@ export default function SignInContent() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const mode = searchParams.get('mode');
+const mode = searchParams?.get('mode') ?? null;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
