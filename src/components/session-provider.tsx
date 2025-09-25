@@ -73,8 +73,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return; 
 
-    const pathIsPublic = publicRoutes.includes(pathname);
-
+const pathIsPublic = pathname ? publicRoutes.includes(pathname) : false;
+    
     if (!user && !pathIsPublic) {
       router.push('/sign-in');
       return;
