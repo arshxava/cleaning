@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getComplaintAnalysis, markComplaintAsResolved } from './actions';
+import { markComplaintAsResolved } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Complaint } from '@/lib/types';
 import Image from 'next/image';
