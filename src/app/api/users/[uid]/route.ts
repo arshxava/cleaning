@@ -96,8 +96,6 @@
 //   }
 // }
 
-
-
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -112,11 +110,13 @@ const updateUserSchema = z.object({
   commissionPercentage: z.coerce.number().min(0).max(100).optional(),
 });
 
-// ✅ FIXED GET
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
+// ✅ Shared type for route context
+type RouteContext = {
+  params: { uid: string };
+};
+
+// ---------------- GET ----------------
+export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
     const client = await clientPromise;
     const db = client.db();
@@ -133,11 +133,8 @@ export async function GET(
   }
 }
 
-// ✅ FIXED PATCH
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
+// ---------------- PATCH ----------------
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
   try {
     const json = await req.json();
     const data = updateUserSchema.parse(json);
@@ -157,18 +154,21 @@ export async function PATCH(
     return NextResponse.json({ message: 'Profile updated successfully' });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Invalid data', errors: error.errors },
+        { status: 400 }
+      );
     }
     console.error(`Error updating user ${params.uid}:`, error);
-    return NextResponse.json({ message: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { message: error.message || 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
 
-// ✅ FIXED DELETE
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
+// ---------------- DELETE ----------------
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const { uid } = params;
   if (!uid) {
     return NextResponse.json({ message: 'User UID is required' }, { status: 400 });
@@ -178,10 +178,10 @@ export async function DELETE(
     const client = await clientPromise;
     const db = client.db();
 
-    // Delete from Firebase
+    // 1. Delete from Firebase Authentication
     await admin.auth().deleteUser(uid);
 
-    // Delete from MongoDB
+    // 2. Delete from MongoDB
     const result = await db.collection('users').deleteOne({ uid });
     if (result.deletedCount === 0) {
       console.warn(`User ${uid} deleted from Firebase but not found in MongoDB.`);
@@ -191,8 +191,14 @@ export async function DELETE(
   } catch (error: any) {
     console.error(`Error deleting user ${uid}:`, error);
     if (error.code === 'auth/user-not-found') {
-      return NextResponse.json({ message: 'User not found in Firebase Authentication' }, { status: 404 });
+      return NextResponse.json(
+        { message: 'User not found in Firebase Authentication' },
+        { status: 404 }
+      );
     }
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal Server Error', error: error.message },
+      { status: 500 }
+    );
   }
 }
