@@ -17,7 +17,7 @@ const updateUserSchema = z.object({
 });
 
 export async function GET(
-  // request: Request,
+  request: Request,
   { params }: { params: { uid: string } }
 ) {
   try {
