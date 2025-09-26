@@ -46,9 +46,15 @@
 //   }
 // }
 
-// ✅ NEW FILE - move email sending here
-import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+// ✅ NEW FILE - move email sending hereimport { NextResponse } from "next/server";
+
+// app/api/send-email/route.ts
+
+import { NextResponse } from 'next/server';
+
+import sgMail from "@sendgrid/mail";
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY!); // Make sure the key is defined
 
 export async function POST(req: Request) {
   try {
@@ -58,25 +64,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_EMAIL,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"A+ Cleaning Solutions" <${process.env.GMAIL_EMAIL}>`,
+    const msg = {
       to,
+      from: process.env.SENDGRID_USER!, // Must be a verified sender in SendGrid
       subject,
       html,
-    });
+    };
+
+    await sgMail.send(msg);
 
     return NextResponse.json({ message: "Email sent successfully" });
   } catch (error: any) {
     console.error("Error sending email:", error);
-    return NextResponse.json({ message: "Failed to send email", error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: "Failed to send email",
+        error: error.response?.body || error.message,
+      },
+      { status: 500 }
+    );
   }
 }
-

@@ -5,7 +5,7 @@ if (!admin.apps.length) {
   try {
     // The service account is expected to be in a JSON file in the root directory
     // This is the standard way when deploying to many services.
-    const serviceAccount = require('../../firebaseServiceAccount.json');
+    const serviceAccount = require('../../firbaseServiceAccount.json');
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
