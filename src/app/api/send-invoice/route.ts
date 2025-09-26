@@ -1,7 +1,8 @@
-
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 import { z } from 'zod';
+import sgMail from '@sendgrid/mail';
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
 const invoiceEmailSchema = z.object({
   to: z.string().email(),
@@ -21,35 +22,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_EMAIL,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"A+ Cleaning Solutions" <${process.env.GMAIL_EMAIL}>`,
+    const msg = {
       to,
+      from: process.env.SENDGRID_USER!, // Must be a verified sender in SendGrid
       subject,
       html,
       attachments: [
         {
-          filename: pdfAttachment.filename,
           content: pdfAttachment.content,
-          encoding: 'base64',
-          contentType: 'application/pdf',
+          filename: pdfAttachment.filename,
+          type: 'application/pdf',
+          disposition: 'attachment',
         },
       ],
-    });
+    };
+
+    await sgMail.send(msg);
 
     return NextResponse.json({ message: 'Invoice email sent successfully' });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-        return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
-    console.error('Error sending invoice email:', error);
+    console.error('Error sending invoice email:', error.response?.body || error);
     return NextResponse.json({ message: 'Failed to send email', error: error.message }, { status: 500 });
   }
 }
