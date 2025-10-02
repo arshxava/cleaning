@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
     const msg = {
       to: email,
-      from: process.env.SENDGRID_USER!, // Must be a verified sender in SendGrid
+      from: process.env.SENDGRID_FROM!, // Must be a verified sender in SendGrid
       subject: 'Your New Provider Account with A+ Cleaning Solutions',
       html,
     };
