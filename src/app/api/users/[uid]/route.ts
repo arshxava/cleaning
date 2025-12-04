@@ -100,6 +100,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 import admin from '@/lib/firebase-admin';
+export const dynamic = "force-dynamic";
+
+
 
 const updateUserSchema = z.object({
   name: z.string().min(2).optional(),
@@ -111,24 +114,90 @@ const updateUserSchema = z.object({
 });
 
 // ---------------- GET ----------------
-export async function GET(req: NextRequest, context: any) {
-  const { uid } = context.params;
+// export async function GET(req: NextRequest, context: any) {
+//   const { uid } = context.params;
 
+//   try {
+//     const client = await clientPromise;
+//     const db = client.db();
+
+//     const user = await db.collection('users').findOne({ uid });
+//     if (!user) {
+//       return NextResponse.json({ message: 'User not found' }, { status: 404 });
+//     }
+
+//     return NextResponse.json(user);
+//   } catch (error) {
+//     console.error(`Error fetching user ${uid}:`, error);
+//     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+//   }
+// }
+
+
+// export async function GET(
+//   req: NextRequest,
+//   context: { params: Promise<{ uid: string }> }
+// ) {
+//   try {
+//     const { uid } = await context.params; // ✅ FIX
+
+//     console.log("UID PARAM:", uid);
+
+//     const client = await clientPromise;
+//     const db = client.db();
+
+//     const user = await db.collection("users").findOne({ uid });
+
+//     if (!user) {
+//       return NextResponse.json(
+//         { message: "User not found" },
+//         { status: 404 }
+//       );
+//     }
+
+//     return NextResponse.json(user);
+//   } catch (error) {
+//     console.error("GET USER ERROR:", error);
+//     return NextResponse.json(
+//       { message: "Internal Server Error" },
+//       { status: 500 }
+//     );
+//   }
+// }
+
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { uid: string } }
+) {
   try {
+    const uid = params.uid; // <-- correct usage (NOT async)
+
+    console.log("UID PARAM:", uid);
+
     const client = await clientPromise;
     const db = client.db();
 
-    const user = await db.collection('users').findOne({ uid });
+    const user = await db.collection("users").findOne({ uid });
+
     if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { message: "User not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error(`Error fetching user ${uid}:`, error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    console.error("GET USER ERROR:", error);
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
+
+
 
 // ---------------- PATCH ----------------
 export async function PATCH(req: NextRequest, context: any) {

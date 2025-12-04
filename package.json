@@ -34,6 +34,7 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@sendgrid/mail": "^8.1.6",
+    "@woocommerce/woocommerce-rest-api": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.2.0",
     "clsx": "^2.1.1",
