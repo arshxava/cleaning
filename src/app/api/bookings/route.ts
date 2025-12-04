@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -7,6 +6,7 @@ import { ObjectId } from 'mongodb';
 const bookingSchema = z.object({
   userId: z.string(),
   userName: z.string(),
+  email: z.string().email(),
   building: z.string(),
   floor: z.string().optional(),
   apartmentType: z.string().optional(),
