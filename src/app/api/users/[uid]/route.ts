@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
@@ -13,13 +12,17 @@ const updateUserSchema = z.object({
   commissionPercentage: z.coerce.number().min(0).max(100).optional(),
 });
 
+// Helper to extract UID from URL
+function extractUid(req: NextRequest) {
+  const parts = req.nextUrl.pathname.split("/");
+  return parts[parts.length - 1];
+}
+
 // ---------------- GET ----------------
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
+export async function GET(req: NextRequest) {
   try {
-    const { uid } = params;
+    const uid = extractUid(req);
+
     const client = await clientPromise;
     const db = client.db();
 
@@ -29,18 +32,15 @@ export async function GET(
     }
 
     return NextResponse.json(user);
-  } catch (error) {
-    console.error(`Error fetching user ${params.uid}:`, error);
+  } catch (error: any) {
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // ---------------- PATCH ----------------
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
+export async function PATCH(req: NextRequest) {
   try {
+    const uid = extractUid(req);
     const json = await req.json();
     const data = updateUserSchema.parse(json);
 
@@ -48,7 +48,7 @@ export async function PATCH(
     const db = client.db();
 
     const result = await db.collection('users').updateOne(
-      { uid: params.uid },
+      { uid },
       { $set: data }
     );
 
@@ -61,43 +61,33 @@ export async function PATCH(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
     }
-    console.error(`Error updating user ${params.uid}:`, error);
-    return NextResponse.json({ message: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
 
 // ---------------- DELETE ----------------
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { uid: string } }
-) {
-  const { uid } = params;
-
-  if (!uid) {
-    return NextResponse.json({ message: 'User UID is required' }, { status: 400 });
-  }
-
+export async function DELETE(req: NextRequest) {
   try {
+    const uid = extractUid(req);
+
+    if (!uid) {
+      return NextResponse.json({ message: 'User UID is required' }, { status: 400 });
+    }
+
+    // Firebase delete
+    await admin.auth().deleteUser(uid);
+
+    // Mongo delete
     const client = await clientPromise;
     const db = client.db();
 
-    // 1. Delete from Firebase Authentication
-    await admin.auth().deleteUser(uid);
-
-    // 2. Delete from MongoDB
-    const result = await db.collection('users').deleteOne({ uid });
-    if (result.deletedCount === 0) {
-      console.warn(`User ${uid} deleted from Firebase but not found in MongoDB.`);
-    }
+    await db.collection('users').deleteOne({ uid });
 
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error: any) {
-    console.error(`Error deleting user ${uid}:`, error);
-
-    if (error.code === 'auth/user-not-found') {
-      return NextResponse.json({ message: 'User not found in Firebase Authentication' }, { status: 404 });
+    if (error.code === "auth/user-not-found") {
+      return NextResponse.json({ message: 'User not found in Firebase' }, { status: 404 });
     }
-
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
