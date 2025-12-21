@@ -216,6 +216,7 @@ export default function BookingPage() {
                 userName: profile.name,
                 building: building,
                 floor: floor,
+                email: user.email || profile.email, 
                 apartmentType: apartmentType,
                 apartmentNumber: apartmentNumber,
                 service: getSelectedServices(),
@@ -226,11 +227,12 @@ export default function BookingPage() {
                 price: price,
             }),
         });
-
         if (!response.ok) {
-            throw new Error('Failed to create booking.');
+          const errorData = await response.json();
+          console.error('Booking API error:', errorData);
+          throw new Error(errorData.message || 'Failed to create booking.');
         }
-
+        
         toast({
             title: 'Booking Confirmed!',
             description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
