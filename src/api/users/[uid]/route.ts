@@ -63,11 +63,46 @@ export async function PATCH(
 }
 
 
+// export async function DELETE(
+//   request: Request,
+//   { params }: { params: { uid: string } }
+// ) {
+//   const { uid } = params;
+//   if (!uid) {
+//     return NextResponse.json({ message: 'User UID is required' }, { status: 400 });
+//   }
+
+//   try {
+//     const client = await clientPromise;
+//     const db = client.db();
+
+//     // 1. Delete from Firebase Authentication
+//     await admin.auth().deleteUser(uid);
+
+//     // 2. Delete from MongoDB
+//     const result = await db.collection('users').deleteOne({ uid: uid });
+//     if (result.deletedCount === 0) {
+//       // Log this inconsistency but don't fail the request if Firebase deletion succeeded
+//       console.warn(`User ${uid} deleted from Firebase Auth but not found in MongoDB.`);
+//     }
+
+//     return NextResponse.json({ message: 'User deleted successfully' });
+//   } catch (error: any) {
+//     console.error(`Error deleting user ${uid}:`, error);
+//     if (error.code === 'auth/user-not-found') {
+//       return NextResponse.json({ message: 'User not found in Firebase Authentication' }, { status: 404 });
+//     }
+//     return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+//   }
+// }
+
+
 export async function DELETE(
   request: Request,
   { params }: { params: { uid: string } }
 ) {
   const { uid } = params;
+
   if (!uid) {
     return NextResponse.json({ message: 'User UID is required' }, { status: 400 });
   }
@@ -76,22 +111,30 @@ export async function DELETE(
     const client = await clientPromise;
     const db = client.db();
 
-    // 1. Delete from Firebase Authentication
-    await admin.auth().deleteUser(uid);
+    let firebaseDeleted = false;
 
-    // 2. Delete from MongoDB
-    const result = await db.collection('users').deleteOne({ uid: uid });
-    if (result.deletedCount === 0) {
-      // Log this inconsistency but don't fail the request if Firebase deletion succeeded
-      console.warn(`User ${uid} deleted from Firebase Auth but not found in MongoDB.`);
+    try {
+      await admin.auth().deleteUser(uid);
+      firebaseDeleted = true;
+    } catch (err: any) {
+      if (err.code !== 'auth/user-not-found') {
+        console.error('Firebase delete failed:', err);
+      }
     }
 
-    return NextResponse.json({ message: 'User deleted successfully' });
+    const result = await db.collection('users').deleteOne({ uid });
+
+    return NextResponse.json({
+      message: 'Delete completed',
+      firebaseDeleted,
+      dbDeleted: result.deletedCount === 1,
+    });
+
   } catch (error: any) {
     console.error(`Error deleting user ${uid}:`, error);
-    if (error.code === 'auth/user-not-found') {
-      return NextResponse.json({ message: 'User not found in Firebase Authentication' }, { status: 404 });
-    }
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal Server Error', error: error.message },
+      { status: 500 }
+    );
   }
 }

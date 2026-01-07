@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { Mail, Lock } from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Mail, Lock } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,29 +16,29 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
-import type { UserProfile } from '@/lib/types';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import type { UserProfile } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
-  email: z.string().email('Invalid email address.'),
-  password: z.string().min(1, 'Password is required.'),
+  email: z.string().email("Invalid email address."),
+  password: z.string().min(1, "Password is required."),
 });
 
 export default function SignInContent() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-const mode = searchParams?.get('mode') ?? null;
+  const mode = searchParams?.get("mode") ?? null;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
   });
 
@@ -56,45 +56,45 @@ const mode = searchParams?.get('mode') ?? null;
 
       if (!response.ok) {
         toast({
-          title: 'Signed In Successfully!',
-          description: 'Welcome back! Redirecting to your dashboard.',
+          title: "Signed In Successfully!",
+          description: "Welcome back! Redirecting to your dashboard.",
         });
-        router.push('/dashboard');
+        router.push("/dashboard");
         return;
       }
 
       const profile: UserProfile = await response.json();
 
       toast({
-        title: 'Signed In Successfully!',
+        title: "Signed In Successfully!",
         description: `Welcome, ${profile.name}!`,
       });
 
-      if (profile?.role === 'admin') {
-        router.push('/admin/complaints');
-      } else if (profile?.role === 'provider') {
-        router.push('/provider/dashboard');
+      if (profile?.role === "admin") {
+        router.push("/admin/complaints");
+      } else if (profile?.role === "provider") {
+        router.push("/provider/dashboard");
       } else {
-        router.push('/dashboard');
+        sessionStorage.setItem("showTerms", "true");
+        router.push("/dashboard");
       }
     } catch (error: any) {
-      console.error('Authentication error:', error);
-      let description =
-        'An unexpected error occurred. Please try again.';
+      console.error("Authentication error:", error);
+      let description = "An unexpected error occurred. Please try again.";
       if (
-        error.code === 'auth/invalid-credential' ||
-        error.code === 'auth/wrong-password' ||
-        error.code === 'auth/user-not-found'
+        error.code === "auth/invalid-credential" ||
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/user-not-found"
       ) {
         description =
-          'Invalid email or password. Please check your credentials and try again.';
-      } else if (error.code === 'auth/user-disabled') {
-        description = 'This account has been disabled.';
+          "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.code === "auth/user-disabled") {
+        description = "This account has been disabled.";
       }
 
       toast({
-        variant: 'destructive',
-        title: 'Sign In Failed',
+        variant: "destructive",
+        title: "Sign In Failed",
         description,
       });
     }
@@ -110,7 +110,7 @@ const mode = searchParams?.get('mode') ?? null;
           </p>
         </div>
 
-        {mode === 'resetPassword' && (
+        {mode === "resetPassword" && (
           <Alert className="bg-green-50 border-green-200">
             <AlertTitle className="text-green-800">
               Password Reset Successful
@@ -171,13 +171,13 @@ const mode = searchParams?.get('mode') ?? null;
               size="lg"
               disabled={form.formState.isSubmitting}
             >
-              {form.formState.isSubmitting ? 'Signing In...' : 'Sign In'}
+              {form.formState.isSubmitting ? "Signing In..." : "Sign In"}
             </Button>
           </form>
         </Form>
 
         <div className="mt-4 text-center text-sm">
-          Don't have an account?{' '}
+          Don't have an account?{" "}
           <Link href="/" className="underline">
             Sign Up
           </Link>

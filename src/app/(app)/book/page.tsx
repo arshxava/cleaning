@@ -23,6 +23,9 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { PaymentElement} from "@stripe/react-stripe-js";
+// import { useStripe, useElements } from "@stripe/react-stripe-js";
+import PaymentSection from "./PaymentSection";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -48,6 +51,10 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useSession } from '@/components/session-provider';
 import { Input } from '@/components/ui/input';
+
+
+import { Elements } from "@stripe/react-stripe-js";
+import { stripePromise } from "@/lib/stripe-client";
 
 const steps = [
   { id: 1, name: 'Service', icon: Sparkles },
@@ -103,7 +110,7 @@ export default function BookingPage() {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
 
   const [building, setBuilding] = useState<string>();
-  const [floor, setFloor] = useState<string>();
+  // const [floor, setFloor] = useState<string>();
   const [apartmentType, setApartmentType] = useState<string>();
   const [apartmentNumber, setApartmentNumber] = useState('');
   
@@ -114,6 +121,12 @@ export default function BookingPage() {
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // const stripe = useStripe();
+  // const elements = useElements();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+
 
   useEffect(() => {
     const fetchBuildings = async () => {
@@ -150,7 +163,7 @@ export default function BookingPage() {
       const buildingData = buildings.find(b => b._id === buildingId);
       setSelectedBuilding(buildingData || null);
       setBuilding(buildingData?.name || '');
-      setFloor(undefined);
+      // setFloor(undefined);
       setApartmentType(undefined);
   }
 
@@ -195,73 +208,170 @@ export default function BookingPage() {
      return Object.values(roomCounts).reduce((sum, count) => sum + count, 0);
   }
 
-  const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
-  const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
+  // const nextStep = () => setCurrentStep((prev) => (prev < steps.length ? prev + 1 : prev));
 
-  const handleBooking = async () => {
-    const totalRooms = getTotalRooms();
-    if (!user || !profile || !building || totalRooms === 0 || !date || !time) {
-        toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
-        return;
+  // const nextStep = async () => {
+  //   if (currentStep === 2) {
+  //     // Create PaymentIntent BEFORE showing payment UI
+  //     const res = await fetch("/api/payments/create-intent", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ amount: price }),
+  //     });
+  
+  //     const data = await res.json();
+  //     setClientSecret(data.clientSecret);
+  //   }
+  
+  //   setCurrentStep((prev) => prev + 1);
+  // };
+  
+  const nextStep = async () => {
+    if (currentStep === 2) {
+      const res = await fetch("/api/payments/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: price }),
+      });
+  
+      const data = await res.json();
+      setClientSecret(data.clientSecret);
     }
-    
-    setIsSubmitting(true);
-
-    try {
-        const response = await fetch('/api/bookings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: user.uid,
-                userName: profile.name,
-                building: building,
-                floor: floor,
-                email: user.email || profile.email, 
-                apartmentType: apartmentType,
-                apartmentNumber: apartmentNumber,
-                service: getSelectedServices(),
-                roomCounts: roomCounts,
-                date: format(date, 'yyyy-MM-dd'),
-                time: time,
-                frequency: 'one-time',
-                price: price,
-            }),
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Booking API error:', errorData);
-          throw new Error(errorData.message || 'Failed to create booking.');
-        }
-        
-        toast({
-            title: 'Booking Confirmed!',
-            description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
-        });
-        
-        // Reset state
-        setCurrentStep(1);
-        setBuilding(undefined);
-        setFloor(undefined);
-        setApartmentType(undefined);
-        setApartmentNumber('');
-        setRoomCounts({ standard: 0, deep: 0, 'move-out': 0 });
-        setDate(undefined);
-        setTime(undefined);
-        setSelectedBuilding(null);
-
-    } catch (error) {
-        console.error('Booking error:', error);
-        toast({ variant: 'destructive', title: 'Booking Failed', description: 'An unexpected error occurred. Please try again.'});
-    } finally {
-        setIsSubmitting(false);
-    }
+  
+    setCurrentStep((prev) => prev + 1);
   };
   
+
+  const prevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
+
+  // const handleBooking = async () => {
+  //   const totalRooms = getTotalRooms();
+  //   if (!user || !profile || !building || totalRooms === 0 || !date || !time) {
+  //       toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
+  //       return;
+  //   }
+    
+  //   setIsSubmitting(true);
+
+  //   try {
+  //       const response = await fetch('/api/bookings', {
+  //           method: 'POST',
+  //           headers: { 'Content-Type': 'application/json' },
+  //           body: JSON.stringify({
+  //               userId: user.uid,
+  //               userName: profile.name,
+  //               building: building,
+  //               // floor: floor,
+  //               email: user.email || profile.email, 
+  //               apartmentType: apartmentType,
+  //               apartmentNumber: apartmentNumber,
+  //               service: getSelectedServices(),
+  //               roomCounts: roomCounts,
+  //               date: format(date, 'yyyy-MM-dd'),
+  //               time: time,
+  //               frequency: 'one-time',
+  //               price: price,
+  //           }),
+  //       });
+  //       if (!response.ok) {
+  //         const errorData = await response.json();
+  //         console.error('Booking API error:', errorData);
+  //         throw new Error(errorData.message || 'Failed to create booking.');
+  //       }
+        
+  //       toast({
+  //           title: 'Booking Confirmed!',
+  //           description: 'Your cleaning is scheduled. You will receive a confirmation email shortly.',
+  //       });
+        
+  //       // Reset state
+  //       setCurrentStep(1);
+  //       setBuilding(undefined);
+  //       // setFloor(undefined);
+  //       setApartmentType(undefined);
+  //       setApartmentNumber('');
+  //       setRoomCounts({ standard: 0, deep: 0, 'move-out': 0 });
+  //       setDate(undefined);
+  //       setTime(undefined);
+  //       setSelectedBuilding(null);
+
+  //   } catch (error) {
+  //       console.error('Booking error:', error);
+  //       toast({ variant: 'destructive', title: 'Booking Failed', description: 'An unexpected error occurred. Please try again.'});
+  //   } finally {
+  //       setIsSubmitting(false);
+  //   }
+  // };
+  
+
+//   const handleBooking = async () => {
+//     const totalRooms = getTotalRooms();
+//     if (!user || !profile || !building || totalRooms === 0 || !date || !time || !stripe || !elements || !clientSecret) {
+//         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before confirming.' });
+//         return;
+//     }
+  
+//     setIsSubmitting(true);
+
+    
+//   try {
+//     const result = await stripe.confirmPayment({
+//       elements,
+//       clientSecret,
+//       redirect: "if_required",
+//     });
+
+//     if (result.error) {
+//       toast({
+//         variant: "destructive",
+//         title: "Payment Failed",
+//         description: result.error.message,
+//       });
+//       return;
+//     }
+
+//     // Save booking AFTER payment success
+//     await fetch("/api/bookings", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         userId: user.uid,
+//         userName: profile.name,
+//         building,
+//         apartmentType,
+//         apartmentNumber,
+//         service: getSelectedServices(),
+//         roomCounts,
+//         date: format(date!, "yyyy-MM-dd"),
+//         time,
+//         frequency: "one-time",
+//         price,
+//         paymentIntentId: result.paymentIntent.id,
+//       }),
+//     });
+
+//     toast({
+//       title: "Booking Confirmed 🎉",
+//       description: "Payment successful",
+//     });
+//   } finally {
+//     setIsSubmitting(false);
+//   }
+// };
+  
+
+
   const progressValue = ((currentStep - 1) / (steps.length - 1)) * 100;
   
-  const isStep1Complete = building && floor && apartmentType && apartmentNumber && getTotalRooms() > 0;
+  // const isStep1Complete = building && floor && apartmentType && apartmentNumber && getTotalRooms() > 0;
+  const isStep1Complete = building && apartmentType && apartmentNumber && getTotalRooms() > 0;
   const isStep2Complete = date && time;
 
+
+  if (currentStep === 3 && (!user || !profile)) {
+    return null;
+  }
+  
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
       <div className="mb-8">
@@ -318,7 +428,7 @@ export default function BookingPage() {
                 </Select>
               </div>
 
-               <div className="space-y-4">
+              {/*} <div className="space-y-4">
                  <Label>Floor Number</Label>
                  <Select onValueChange={setFloor} value={floor} disabled={!selectedBuilding}>
                   <div className="relative">
@@ -333,7 +443,7 @@ export default function BookingPage() {
                     )) : <SelectItem value="loading" disabled>Select building first</SelectItem>}
                   </SelectContent>
                 </Select>
-              </div>
+              </div>*/}
               
               <div className="space-y-4">
                 <Label>Apartment Type</Label>
@@ -416,20 +526,28 @@ export default function BookingPage() {
             </div>
           )}
           
-          {currentStep === 3 && (
+          {/* {currentStep === 3 && (
             <div className="space-y-6">
-              <h3 className="font-semibold">Review Your Booking</h3>
+              <h3 className="font-semibold">Review Your Booking</h3> */}
+
+{/* {currentStep === 3 && clientSecret && (
+  <Elements
+    stripe={stripePromise}
+    options={{ clientSecret }}
+  >
+    <div className="space-y-6">
+      <h3 className="font-semibold">Review Your Booking</h3>
               <Card>
                 <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Building:</span>
                     <span className="font-medium text-right">{building || 'Not selected'}</span>
                   </div>
-                   <div className="flex justify-between">
+                   {/* <div className="flex justify-between">
                     <span className="text-muted-foreground">Floor:</span>
                     <span className="font-medium text-right">{floor || 'Not selected'}</span>
-                  </div>
-                   <div className="flex justify-between">
+                  </div> */}
+                   {/* <div className="flex justify-between">
                     <span className="text-muted-foreground">Apt Type:</span>
                     <span className="font-medium text-right">{apartmentType || 'Not selected'}</span>
                   </div>
@@ -467,13 +585,53 @@ export default function BookingPage() {
                   </div>
                 </CardContent>
               </Card>
-              <p className="text-center text-muted-foreground text-sm">Mock payment gateway. No real transaction will be made.</p>
-            </div>
-          )}
+              <div className="border rounded-md p-4">
+        <PaymentElement />
+      </div>
 
-        </CardContent>
+      <p className="text-center text-muted-foreground text-sm">
+        Secure test payment powered by Stripe.
+      </p>
+    </div>
+  </Elements>
+)} */}
+  
+  {currentStep === 3 && clientSecret && (
+    <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <PaymentSection
+        booking={{
+          building,
+          apartmentType,
+          apartmentNumber,
+          roomCounts,
+          date,
+          time,
+          price,
+        }}
+        bookingPayload={{
+          userId: user!.uid,
+          userName: profile!.name,
+          email: user!.email ?? profile!.email,
+          building,
+          apartmentType,
+          apartmentNumber,
+          service: getSelectedServices(),
+          roomCounts,
+          date: format(date!, "yyyy-MM-dd"),
+          time,
+          frequency: "one-time",
+          price,
+        }}
+        onSuccess={() => {
+          setCurrentStep(1);
+          setClientSecret(null);
+        }}
+      />
+    </Elements>
+  )}
+</CardContent>
 
-        <CardFooter className="flex justify-between">
+        {/* <CardFooter className="flex justify-between">
           <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
             <ChevronLeft /> Previous
           </Button>
@@ -485,11 +643,37 @@ export default function BookingPage() {
             <Button onClick={handleBooking} disabled={isSubmitting}>
               {isSubmitting ? 'Confirming...' : 'Confirm Booking'} <Check className="ml-2" />
             </Button>
-          )}
+          )
+          }
         </CardFooter>
       </Card>
     </div>
   );
-}
+} */}
 
-    
+<CardFooter className="flex justify-between">
+  <Button
+    variant="outline"
+    onClick={prevStep}
+    disabled={currentStep === 1}
+  >
+    <ChevronLeft /> Previous
+  </Button>
+
+  {currentStep < steps.length && (
+    <Button
+      onClick={nextStep}
+      disabled={
+        (currentStep === 1 && !isStep1Complete) ||
+        (currentStep === 2 && !isStep2Complete)
+      }
+    >
+      Next <ChevronRight />
+    </Button>
+  )}
+</CardFooter>
+</Card>
+    </div>
+  );
+}
+   

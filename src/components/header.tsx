@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -7,14 +6,28 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { useState } from 'react';
-import { useSession } from '@/components/session-provider'; 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+
+import { useSession } from '@/components/session-provider';
 import { useToast } from '@/hooks/use-toast';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', roles: ['user'] },
@@ -26,6 +39,8 @@ const navLinks = [
 
 const Header = () => {
   const [isSheetOpen, setSheetOpen] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
   const { user, profile } = useSession();
   const { toast } = useToast();
   const router = useRouter();
@@ -39,100 +54,160 @@ const Header = () => {
       });
       router.push('/sign-in');
     } catch (error) {
-      console.error('Sign out error:', error);
       toast({
         variant: 'destructive',
         title: 'Sign Out Failed',
-        description: 'There was a problem signing you out. Please try again.',
+        description: 'There was a problem signing you out.',
       });
     }
   };
 
-
-  const closeSheet = () => setSheetOpen(false);
-  
-  const getVisibleLinks = () => {
-    if (!user || !profile) return [];
-    return navLinks.filter(link => link.roles.includes(profile.role));
-  }
-  
-  const visibleLinks = getVisibleLinks();
-
+  const visibleLinks =
+    user && profile
+      ? navLinks.filter(link => link.roles.includes(profile.role))
+      : [];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
-        <Link href="/" className="mr-6 flex items-center gap-2">
-          {/* <Sparkles className="h-6 w-6 text-primary" /> */}
-          <img src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp" alt="A+ Cleaning Solutions" className="h-12"></img>
-          {/* <span className="font-bold">A+ Cleaning Solutions</span> */}
-        </Link>
-        <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
-          {visibleLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {link.icon && <link.icon className="h-4 w-4" />}
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-4">
-           {user ? (
-            <Button onClick={handleSignOut} variant="outline" size="sm">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          ) : (
-            <>
-              <Button asChild variant="outline">
-                <Link href="/sign-in">Sign In</Link>
+    <>
+      <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur">
+        <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
+          {/* LOGO */}
+          <Link href="/" className="mr-6 flex items-center gap-2">
+            <img
+              src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp"
+              alt="A+ Cleaning Solutions"
+              className="h-12"
+            />
+          </Link>
+
+          {/* DESKTOP NAV */}
+          <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
+            {visibleLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+              >
+                {link.icon && <link.icon className="h-4 w-4" />}
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* RIGHT ACTIONS */}
+          <div className="ml-auto flex items-center gap-4">
+            {user && profile?.role === 'user' && (
+              <button
+                onClick={() => setShowTerms(true)}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                T&amp;C
+              </button>
+            )}
+
+            {user ? (
+              <Button onClick={handleSignOut} variant="outline" size="sm">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
               </Button>
-              <Button asChild>
-                <Link href="/">Sign Up</Link>
-              </Button>
-            </>
-          )}
-          <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0">
-               <SheetHeader className="p-6">
-                <VisuallyHidden>
-                  <SheetTitle>Navigation Menu</SheetTitle>
-                  <SheetDescription>A list of links to navigate the application.</SheetDescription>
-                </VisuallyHidden>
-              </SheetHeader>
-              <div className="flex flex-col gap-6 px-6">
-                <Link href="/" className="flex items-center gap-2 font-bold text-lg" onClick={closeSheet}>
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  <span className="font-bold">A+ Cleaning Solutions</span>
-                </Link>
-                <nav className="flex flex-col gap-4">
-                  {visibleLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                      onClick={closeSheet}
-                    >
-                      {link.icon && <link.icon className="h-4 w-4" />}
-                      {link.label}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
-            </SheetContent>
-          </Sheet>
+            ) : (
+              <>
+                <Button asChild variant="outline">
+                  <Link href="/sign-in">Sign In</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/">Sign Up</Link>
+                </Button>
+              </>
+            )}
+
+            {/* MOBILE MENU */}
+            <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+
+              <SheetContent side="left" className="p-0">
+                <SheetHeader className="p-6">
+                  <VisuallyHidden>
+                    <SheetTitle>Navigation</SheetTitle>
+                    <SheetDescription>Menu</SheetDescription>
+                  </VisuallyHidden>
+                </SheetHeader>
+
+                <div className="flex flex-col gap-6 px-6">
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 font-bold text-lg"
+                    onClick={() => setSheetOpen(false)}
+                  >
+                    <Sparkles className="h-6 w-6 text-primary" />
+                    A+ Cleaning Solutions
+                  </Link>
+
+                  <nav className="flex flex-col gap-4">
+                    {visibleLinks.map(link => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setSheetOpen(false)}
+                      >
+                        {link.icon && <link.icon className="h-4 w-4" />}
+                        {link.label}
+                      </Link>
+                    ))}
+                  </nav>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* TERMS & CONDITIONS POPUP */}
+      <Dialog open={showTerms} onOpenChange={setShowTerms}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Terms & Conditions</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[300px] overflow-y-auto space-y-4 text-sm">
+            <p>
+              Welcome to <strong>A+ Cleaning Solutions</strong>.
+            </p>
+
+            <p>
+              <strong>1. Services</strong><br />
+              All cleaning services are delivered based on the booking
+              details provided by the user.
+            </p>
+
+            <p>
+              <strong>3. Property Access</strong><br />
+              Users must ensure safe access to the premises.
+            </p>
+
+            <p>
+              <strong>4. Liability</strong><br />
+              We are not responsible for pre-existing damages.
+            </p>
+
+            <p>
+              By using our services, you agree to these terms.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setShowTerms(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

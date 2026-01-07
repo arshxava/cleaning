@@ -9,7 +9,7 @@ const bookingSchema = z.object({
   userId: z.string(),
   userName: z.string(),
   building: z.string(),
-  floor: z.string().optional(),
+  // floor: z.string().optional(),
   apartmentType: z.string().optional(),
   apartmentNumber: z.string().optional(),
   service: z.string(),
@@ -18,6 +18,7 @@ const bookingSchema = z.object({
     deep: z.number(),
     'move-out': z.number(),
   }),
+  paymentIntentId: z.string(),
   date: z.string(), // Expecting 'yyyy-MM-dd'
   time: z.string(),
   frequency: z.string(),
@@ -25,7 +26,7 @@ const bookingSchema = z.object({
 });
 
 const updateBookingSchema = z.object({
-    status: z.enum(['Aligned', 'In Process', 'Completed']).optional(),
+    status: z.enum(['New Request', 'In Process', 'Completed']).optional(),
     beforeImages: z.array(z.string()).optional(),
     afterImages: z.array(z.string()).optional(),
 });
@@ -43,14 +44,25 @@ export async function POST(request: Request) {
     const buildingDoc = await db.collection('buildings').findOne({ name: data.building });
     let providerName = buildingDoc?.assignedProvider || 'Unassigned';
 
+    // const bookingData = {
+    //   ...data,
+    //   status: 'New Request',
+    //   provider: providerName,
+    //   beforeImages: [],
+    //   afterImages: [],
+    //   createdAt: new Date(),
+    // };
+
     const bookingData = {
       ...data,
-      status: 'Aligned',
+      status: 'New Request',
+      paymentStatus: 'paid',
       provider: providerName,
       beforeImages: [],
       afterImages: [],
       createdAt: new Date(),
     };
+    
 
     const result = await db.collection('bookings').insertOne(bookingData);
 

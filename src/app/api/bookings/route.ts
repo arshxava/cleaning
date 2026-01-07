@@ -24,7 +24,7 @@ const bookingSchema = z.object({
 });
 
 const updateBookingSchema = z.object({
-    status: z.enum(['Aligned', 'In Process', 'Completed']).optional(),
+    status: z.enum(['New Request', 'In Process', 'Completed']).optional(),
     beforeImages: z.array(z.string()).optional(),
     afterImages: z.array(z.string()).optional(),
 });
@@ -43,19 +43,91 @@ async function sendBookingConfirmationEmail(userId: string, bookingDetails: any)
     const to = user.email;
     const subject = `Your Booking is Confirmed! (ID: ${bookingDetails.id.toString()})`;
     const html = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h1>Booking Confirmed!</h1>
-            <p>Hello ${user.name},</p>
-            <p>Your cleaning service has been scheduled. Here are the details:</p>
-            <ul style="list-style-type: none; padding: 0;">
-                <li><strong>Service:</strong> ${bookingDetails.service}</li>
-                <li><strong>Building:</strong> ${bookingDetails.building}</li>
-                <li><strong>Date:</strong> ${new Date(bookingDetails.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})}</li>
-                <li><strong>Time:</strong> ${bookingDetails.time}</li>
-                <li><strong>Total Price:</strong> $${bookingDetails.price.toFixed(2)}</li>
-            </ul>
-            <p>Thank you for choosing A+ Cleaning Solutions!</p>
-        </div>
+        <div style="font-family: Arial, Helvetica, sans-serif; background-color:#f5f7f9; padding:30px;">
+  <div style="max-width:600px; margin:0 auto; background:#ffffff; padding:32px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+
+    <!-- Logo -->
+    <div style="text-align:center; margin-bottom:24px;">
+      <img
+        src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp"
+        alt="A+ Cleaning Solutions"
+        style="max-width:170px; height:auto;"
+      />
+    </div>
+
+    <!-- Heading -->
+    <h2 style="color:#222; margin-bottom:12px;">
+      Booking Confirmed ✅
+    </h2>
+
+    <!-- Greeting -->
+    <p style="color:#555; margin-bottom:16px;">
+      Hello <strong>${user.name}</strong>,
+    </p>
+
+    <p style="color:#555; margin-bottom:20px;">
+      Your cleaning service has been successfully scheduled. Below are the details
+      of your upcoming booking:
+    </p>
+
+    <!-- Booking Details -->
+    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:16px; margin:20px 0;">
+      <table style="width:100%; border-collapse:collapse; font-size:15px;">
+        <tr>
+          <td style="padding:8px 0; color:#333;"><strong>Service</strong></td>
+          <td style="padding:8px 0; color:#555;">${bookingDetails.service}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:#333;"><strong>Building</strong></td>
+          <td style="padding:8px 0; color:#555;">${bookingDetails.building}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:#333;"><strong>Date</strong></td>
+          <td style="padding:8px 0; color:#555;">
+            ${new Date(bookingDetails.date).toLocaleDateString(
+              'en-US',
+              {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'UTC'
+              }
+            )}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:#333;"><strong>Time</strong></td>
+          <td style="padding:8px 0; color:#555;">${bookingDetails.time}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:#333;"><strong>Total Price</strong></td>
+          <td style="padding:8px 0; color:#555;">
+            $${bookingDetails.price.toFixed(2)}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Footer Message -->
+    <p style="color:#555; margin-bottom:20px;">
+      Our team will arrive as scheduled to provide you with a professional and
+      reliable cleaning service.
+    </p>
+
+    <p style="color:#555;">
+      Thank you for choosing <strong>A+ Cleaning Solutions</strong>. We look forward
+      to serving you!
+    </p>
+
+    <p style="color:#555; margin-top:20px;">
+      Best regards,<br />
+      <strong>A+ Cleaning Solutions Team</strong>
+    </p>
+
+  </div>
+</div>
+
     `;
 
     try {
@@ -87,7 +159,7 @@ export async function POST(request: Request) {
 
     const bookingData = {
       ...data,
-      status: 'Aligned',
+      status: 'New Request',
       provider: providerName,
       beforeImages: [],
       afterImages: [],

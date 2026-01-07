@@ -134,7 +134,7 @@ export default function ProviderDashboardPage() {
 
 
   const providerBookings = bookings.filter(b => b.provider === profile?.name);
-  const columns: Booking['status'][] = ['Aligned', 'In Process', 'Completed'];
+  const columns: Booking['status'][] = ['New Request', 'In Process', 'Completed'];
 
   if (!profile) {
     return (

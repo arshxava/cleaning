@@ -21,14 +21,44 @@ const profileSchema = z.object({
 async function sendWelcomeEmail(email: string, name: string) {
      const subject = `Welcome to A+ Cleaning Solutions!`;
      const html = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <h1 style="color: #333;">Welcome, ${name}!</h1>
-        <p>Thank you for signing up for A+ Cleaning Solutions. Your account has been created successfully.</p>
-        <p>You can now log in and start booking our cleaning services.</p>
-        <p>If you did not create an account, no further action is required.</p>
-        <p>Thanks,</p>
-        <p>The A+ Cleaning Solutions Team</p>
-        </div>
+        <div style="font-family: Arial, sans-serif; background-color:#f7f7f7; padding:30px;">
+  <div style="max-width:600px; margin:0 auto; background:#ffffff; padding:30px; border-radius:8px;">
+    
+    <!-- Logo -->
+    <div style="text-align:center; margin-bottom:20px;">
+      <img 
+        src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp" 
+        alt="A+ Cleaning Solutions"
+        style="max-width:160px; height:auto;"
+      />
+    </div>
+
+    <h2 style="color:#222; margin-bottom:10px;">Welcome to A+ Cleaning Solutions, ${name} 👋</h2>
+
+    <p style="color:#555;">
+      We’re excited to have you on board! Your account has been successfully created with
+      <strong>A+ Cleaning Solutions</strong>.
+    </p>
+
+    <p style="color:#555;">
+      You can now log in to your account and start booking reliable, professional cleaning
+      services at your convenience.
+    </p>
+
+    <p style="color:#777; font-size:14px;">
+      If you did not create this account, please ignore this email — no further action is required.
+    </p>
+
+    <hr style="border:none; border-top:1px solid #eee; margin:30px 0;">
+
+    <p style="color:#555;">
+      Best regards,<br>
+      <strong>A+ Cleaning Solutions Team</strong>
+    </p>
+
+  </div>
+</div>
+
     `;
 
     try {

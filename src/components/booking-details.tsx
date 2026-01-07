@@ -72,7 +72,7 @@ export function BookingDetails({ booking, provider }: { booking: Booking, provid
             <div className="flex items-center gap-2"><User className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Client:</span> {booking.userName}</span></div>
             <div className="flex items-center gap-2"><User className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Provider:</span> {booking.provider}</span></div>
             <div className="flex items-center gap-2"><Building className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Building:</span> {booking.building}</span></div>
-            <div className="flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Floor:</span> {booking.floor}</span></div>
+            {/* <div className="flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Floor:</span> {booking.floor}</span></div> */}
             <div className="flex items-center gap-2"><DoorOpen className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Apt Type:</span> {booking.apartmentType}</span></div>
             <div className="flex items-center gap-2"><Hash className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Apt Number:</span> {booking.apartmentNumber}</span></div>
             <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /><span><span className='font-medium'>Date:</span> {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'})}</span></div>

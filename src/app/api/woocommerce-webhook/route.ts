@@ -275,7 +275,7 @@ console.log("⏰ bookingTime:", bookingTime);
       time: bookingTime,
       frequency,
       price: parseFloat(order.total),
-      status: "Aligned",
+      status: "New Request",
       provider: "Unassigned",
       beforeImages: [],
       afterImages: [],

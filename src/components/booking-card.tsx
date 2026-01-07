@@ -172,7 +172,7 @@ export const BookingCard = ({ booking, userRole, commissionPercentage, onUpdate 
           </div>
         )}
 
-        {userRole === 'provider' && booking.status === 'Aligned' && (
+        {userRole === 'provider' && booking.status === 'New Request' && (
              <Button size="sm" variant="outline" className='w-full' onClick={() => beforeImageRef.current?.click()} disabled={isActionDisabled}>
                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 {isUploading ? 'Uploading...' : "Start & Upload 'Before'"}

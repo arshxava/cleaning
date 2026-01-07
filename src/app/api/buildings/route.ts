@@ -17,7 +17,7 @@ const roomTypeSchema = z.object({
 const buildingSchema = z.object({
   name: z.string().min(3),
   location: z.string().min(3),
-  floors: z.coerce.number().min(1),
+  // floors: z.coerce.number().min(1),
   roomTypes: z.array(roomTypeSchema).min(1),
 });
 

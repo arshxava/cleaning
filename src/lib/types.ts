@@ -13,7 +13,7 @@ export type UserProfile = {
   commissionPercentage?: number;
 };
 
-export type BookingStatus = 'Aligned' | 'In Process' | 'Completed';
+export type BookingStatus = 'New Request' | 'In Process' | 'Completed';
 
 export type RoomCounts = {
     standard: number;

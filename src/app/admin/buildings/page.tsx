@@ -57,7 +57,7 @@ const roomTypeSchema = z.object({
 const formSchema = z.object({
   name: z.string().min(3, 'Building name must be at least 3 characters.'),
   location: z.string().min(3, 'Location must be at least 3 characters.'),
-  floors: z.coerce.number().min(1, "At least one floor is required."),
+  // floors: z.coerce.number().min(1, "At least one floor is required."),
   roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type.")
 });
 
@@ -65,7 +65,7 @@ type Building = {
   _id: string;
   name: string;
   location: string;
-  floors: number;
+  // floors: number;
   roomTypes: z.infer<typeof roomTypeSchema>[];
   assignedProvider?: string; // Provider's name
   createdAt: string;
@@ -97,13 +97,13 @@ const BuildingForm = ({ form, onSubmit, isSubmitting }: { form: UseFormReturn<z.
                     <FormMessage />
                     </FormItem>
                 )} />
-                <FormField control={form.control} name="floors" render={({ field }) => (
+                {/* <FormField control={form.control} name="floors" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Number of Floors</FormLabel>
                     <FormControl><div className="relative"><Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="e.g., 12" {...field} className="pl-10" /></div></FormControl>
                     <FormMessage />
                     </FormItem>
-                )} />
+                )} /> */}
                 <Separator />
                 <div>
                     <h3 className="text-lg font-medium mb-4">Room Types & Pricing</h3>
@@ -156,7 +156,7 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange, onBuild
         defaultValues: {
             name: building.name,
             location: building.location,
-            floors: building.floors,
+            // floors: building.floors,
             roomTypes: building.roomTypes
         },
     });
@@ -226,7 +226,8 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange, onBuild
             <div className="flex justify-between items-start">
                 <div>
                     <CardTitle>{building.name}</CardTitle>
-                    <CardDescription>{building.location} - {building.floors} floors</CardDescription>
+                    {/* <CardDescription>{building.location} - {building.floors} floors</CardDescription> */}
+                    <CardDescription>{building.location}</CardDescription>
                 </div>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -329,7 +330,7 @@ export default function BuildingsPage() {
     defaultValues: {
       name: '',
       location: '',
-      floors: 1,
+      // floors: 1,
       roomTypes: [{ name: 'Single Dorm', count: 10, prices: { standard: 50, deep: 80, 'move-out': 120 } }]
     },
   });
@@ -436,14 +437,14 @@ export default function BuildingsPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField control={form.control} name="floors" render={({ field }) => (
+                  {/* <FormField control={form.control} name="floors" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Number of Floors</FormLabel>
                         <FormControl><div className="relative"><Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="number" placeholder="e.g., 12" {...field} className="pl-10" /></div></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  /> */}
 
                   <Separator />
 

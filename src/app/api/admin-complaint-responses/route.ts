@@ -25,15 +25,59 @@ async function sendAdminComplaintResponseEmail(userId: string, responseText: str
     const to = user.email;
     const subject = `Update on your complaint (ID: ${complaintId.slice(-6)})`;
     const body = `
-        <h1>Response from the Admin Team</h1>
-        <p>Hello ${user.name},</p>
-        <p>You have received a response from our support team regarding your recent complaint:</p>
-        <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 1rem;">
-            ${responseText}
-        </blockquote>
-        <p>The complaint has now been marked as resolved. If you have further questions, please contact support.</p>
-        <p>Thanks,</p>
-        <p>The A+ Cleaning Solutions Team</p>
+        <div style="font-family: Arial, Helvetica, sans-serif; background-color:#f5f7f9; padding:30px;">
+  <div style="max-width:600px; margin:0 auto; background:#ffffff; padding:32px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+
+    <!-- Logo -->
+    <div style="text-align:center; margin-bottom:24px;">
+      <img
+        src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp"
+        alt="A+ Cleaning Solutions"
+        style="max-width:170px; height:auto;"
+      />
+    </div>
+
+    <!-- Heading -->
+    <h2 style="color:#222; margin-bottom:12px;">
+      Response from the Admin Team
+    </h2>
+
+    <!-- Greeting -->
+    <p style="color:#555; margin-bottom:16px;">
+      Hello <strong>${user.name}</strong>,
+    </p>
+
+    <p style="color:#555; margin-bottom:20px;">
+      You’ve received a response from our support team regarding your recent complaint.
+      Please find the details below:
+    </p>
+
+    <!-- Response Box -->
+    <div style="background:#f9fafb; border-left:4px solid #111827; padding:16px; border-radius:6px; margin:20px 0;">
+      <p style="color:#333; margin:0; white-space:pre-line;">
+        ${responseText}
+      </p>
+    </div>
+
+    <p style="color:#555; margin-bottom:20px;">
+      This complaint has now been marked as <strong>resolved</strong>.
+      If you have any further questions or require additional assistance,
+      please feel free to contact our support team.
+    </p>
+
+    <!-- Footer -->
+    <p style="color:#555;">
+      Best regards,<br />
+      <strong>A+ Cleaning Solutions Team</strong>
+    </p>
+
+    <p style="color:#777; font-size:14px; margin-top:24px;">
+      This is an automated message. Please do not reply directly to this email.
+    </p>
+
+  </div>
+</div>
+
     `;
 
      try {
