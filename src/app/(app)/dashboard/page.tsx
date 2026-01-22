@@ -42,6 +42,9 @@ export default function DashboardPage() {
   // ✅ TERMS POPUP STATE
   const [showTerms, setShowTerms] = useState(false);
 
+  // ✅ TERMS CONTENT (ADDED)
+  const [termsContent, setTermsContent] = useState('');
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -70,6 +73,23 @@ export default function DashboardPage() {
 
     fetchData();
   }, [user]);
+
+  // ✅ FETCH TERMS FROM ADMIN SETTINGS (ADDED)
+  useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const res = await fetch('/api/settings/terms');
+        if (res.ok) {
+          const data = await res.json();
+          setTermsContent(data.content || '');
+        }
+      } catch (error) {
+        console.error('Failed to fetch terms:', error);
+      }
+    };
+
+    fetchTerms();
+  }, []);
 
   // ✅ SHOW TERMS ONLY WHEN REDIRECTED FROM LOGIN
   useEffect(() => {
@@ -296,19 +316,11 @@ export default function DashboardPage() {
             <DialogTitle>Terms & Conditions</DialogTitle>
           </DialogHeader>
 
-          <div className="max-h-[300px] overflow-y-auto space-y-4 text-sm">
-            <p>
-              Welcome to <strong>A+ Cleaning Solutions</strong>.
-            </p>
-            <p>
-              By using our services, you agree to provide accurate booking
-              details and ensure safe access to the property.
-            </p>
-            <p>
-              A+ Cleaning Solutions is not responsible for pre-existing
-              damages or unsafe conditions.
-            </p>
-          </div>
+          {/* ✅ DYNAMIC TERMS CONTENT (REPLACED HARD-CODED TEXT) */}
+          <div
+            className="max-h-[300px] overflow-y-auto space-y-4 text-sm"
+            dangerouslySetInnerHTML={{ __html: termsContent }}
+          />
 
           <DialogFooter>
             <Button onClick={() => setShowTerms(false)}>

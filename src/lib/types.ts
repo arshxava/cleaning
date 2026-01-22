@@ -86,3 +86,10 @@ export type Payment = {
   createdAt: any;
   invoiceRequestId?: string;
 }
+
+export type AppSetting = {
+  _id?: string;
+  key: string;
+  value: string;
+  updatedAt?: any;
+};

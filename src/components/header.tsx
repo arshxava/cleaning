@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -41,9 +41,29 @@ const Header = () => {
   const [isSheetOpen, setSheetOpen] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
+  // ✅ TERMS CONTENT (ADDED)
+  const [termsContent, setTermsContent] = useState('');
+
   const { user, profile } = useSession();
   const { toast } = useToast();
   const router = useRouter();
+
+  // ✅ FETCH TERMS FROM ADMIN SETTINGS (ADDED)
+  useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const res = await fetch('/api/settings/terms');
+        if (res.ok) {
+          const data = await res.json();
+          setTermsContent(data.content || '');
+        }
+      } catch (error) {
+        console.error('Failed to fetch terms:', error);
+      }
+    };
+
+    fetchTerms();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -101,7 +121,7 @@ const Header = () => {
                 onClick={() => setShowTerms(true)}
                 className="text-sm text-muted-foreground hover:text-foreground underline"
               >
-                T&amp;C
+                Terms & Conditions
               </button>
             )}
 
@@ -167,38 +187,18 @@ const Header = () => {
         </div>
       </header>
 
-      {/* TERMS & CONDITIONS POPUP */}
+      {/* ✅ TERMS & CONDITIONS POPUP */}
       <Dialog open={showTerms} onOpenChange={setShowTerms}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Terms & Conditions</DialogTitle>
           </DialogHeader>
 
-          <div className="max-h-[300px] overflow-y-auto space-y-4 text-sm">
-            <p>
-              Welcome to <strong>A+ Cleaning Solutions</strong>.
-            </p>
-
-            <p>
-              <strong>1. Services</strong><br />
-              All cleaning services are delivered based on the booking
-              details provided by the user.
-            </p>
-
-            <p>
-              <strong>3. Property Access</strong><br />
-              Users must ensure safe access to the premises.
-            </p>
-
-            <p>
-              <strong>4. Liability</strong><br />
-              We are not responsible for pre-existing damages.
-            </p>
-
-            <p>
-              By using our services, you agree to these terms.
-            </p>
-          </div>
+          {/* ✅ DYNAMIC TERMS CONTENT */}
+          <div
+            className="max-h-[300px] overflow-y-auto space-y-4 text-sm"
+            dangerouslySetInnerHTML={{ __html: termsContent }}
+          />
 
           <DialogFooter>
             <Button onClick={() => setShowTerms(false)}>

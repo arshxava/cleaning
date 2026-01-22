@@ -9,7 +9,7 @@ import {
   MessageSquareWarning,
   HardHat,
   Briefcase,
-  Receipt,
+  Receipt, FileText,CreditCard
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -78,6 +78,17 @@ export default function AdminLayout({
       label: 'Billing',
       icon: Receipt,
       badge: pendingInvoices,
+    },
+    {
+  href: "/admin/payments",
+  label: "Payments",
+  icon: CreditCard,
+},
+
+    {
+      href: '/admin/settings/terms',
+      label: 'Terms & Conditions',
+      icon: FileText,
     },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/analytics', label: 'Analytics', icon: LineChart },

@@ -186,7 +186,6 @@
 //   );
 // }
 
-
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -320,7 +319,7 @@ export default function OngoingServicesPage() {
         </p>
       </div>
 
-      {/* BUILDING FILTER (ALWAYS VISIBLE) */}
+      {/* BUILDING FILTER */}
       <div className="flex flex-wrap gap-2 mb-6">
         {buildingOptions.map(building => (
           <Button
@@ -332,7 +331,7 @@ export default function OngoingServicesPage() {
             }
             onClick={() => {
               setSelectedBuilding(building);
-              setStatusFilter('All'); // reset status on building change
+              setStatusFilter('All');
             }}
           >
             {building}
@@ -340,7 +339,7 @@ export default function OngoingServicesPage() {
         ))}
       </div>
 
-      {/* STATUS FILTER (VISIBLE ONLY AFTER BUILDING SELECTION) */}
+      {/* STATUS FILTER */}
       {selectedBuilding && (
         <div className="flex flex-wrap gap-2 mb-6">
           {statusFilters.map(status => (
@@ -371,7 +370,13 @@ export default function OngoingServicesPage() {
               <TableRow>
                 <TableHead>Service</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>
+                  Service Date
+                  <p className="text-xs text-muted-foreground">
+                    (Scheduled)
+                  </p>
+                </TableHead>
+                <TableHead>Service Time</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -383,7 +388,7 @@ export default function OngoingServicesPage() {
               {!selectedBuilding ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center"
                   >
                     Please select a building to view services.
@@ -392,10 +397,8 @@ export default function OngoingServicesPage() {
               ) : filteredBookings.length ? (
                 filteredBookings.map(booking => (
                   <TableRow key={booking._id}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {booking.service}
-                      </div>
+                    <TableCell className="font-medium">
+                      {booking.service}
                     </TableCell>
 
                     <TableCell>{booking.userName}</TableCell>
@@ -404,6 +407,14 @@ export default function OngoingServicesPage() {
                       {new Date(booking.date).toLocaleDateString(
                         'en-CA',
                         { timeZone: 'UTC' }
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {booking.time || (
+                        <span className="text-xs text-muted-foreground">
+                          Not specified
+                        </span>
                       )}
                     </TableCell>
 
@@ -445,7 +456,7 @@ export default function OngoingServicesPage() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center"
                   >
                     No services found for this building and status.
