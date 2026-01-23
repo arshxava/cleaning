@@ -94,7 +94,7 @@ const Header = () => {
           {/* LOGO */}
           <Link href="/" className="mr-6 flex items-center gap-2">
             <img
-              src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp"
+              src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2026/01/ChatGPT_Imsd.png"
               alt="A+ Cleaning Solutions"
               className="h-12"
             />

@@ -27,7 +27,7 @@ async function sendWelcomeEmail(email: string, name: string) {
     <!-- Logo -->
     <div style="text-align:center; margin-bottom:20px;">
       <img 
-        src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2025/12/ChatGPT_Imsd.webp" 
+        src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2026/01/ChatGPT_Imsd.png" 
         alt="A+ Cleaning Solutions"
         style="max-width:160px; height:auto;"
       />
