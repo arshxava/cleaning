@@ -5,13 +5,26 @@ import { z } from 'zod';
 import admin from 'firebase-admin';
 
 // This schema defines the expected shape of the data for creating a user profile.
+// const profileSchema = z.object({
+//   uid: z.string(),
+//   name: z.string(),
+//   email: z.string().email(),
+//   phone: z.string(),
+//   notificationPreference: z.enum(['email']),
+//   school: z.string(),
+//   roomSize: z.string(),
+//   role: z.enum(['user', 'admin', 'provider']),
+// });
+
+
 const profileSchema = z.object({
   uid: z.string(),
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),
   notificationPreference: z.enum(['email']),
-  school: z.string(),
+  selectionType: z.enum(['school', 'building']),
+  school: z.string(), // keep same key for compatibility
   roomSize: z.string(),
   role: z.enum(['user', 'admin', 'provider']),
 });
