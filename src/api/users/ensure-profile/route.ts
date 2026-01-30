@@ -23,7 +23,7 @@ const profileSchema = z.object({
   email: z.string().email(),
   phone: z.string(),
   notificationPreference: z.enum(['email']),
-  selectionType: z.enum(['school', 'building']),
+  // selectionType: z.enum(['school', 'building']),
   school: z.string(), // keep same key for compatibility
   roomSize: z.string(),
   role: z.enum(['user', 'admin', 'provider']),

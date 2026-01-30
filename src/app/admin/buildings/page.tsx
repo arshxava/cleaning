@@ -54,40 +54,40 @@ const roomTypeSchema = z.object({
   })
 });
 
-// const formSchema = z.object({
-//   name: z.string().min(3, 'Building name must be at least 3 characters.'),
-//   location: z.string().min(3, 'Location must be at least 3 characters.'),
-//   // floors: z.coerce.number().min(1, "At least one floor is required."),
-//   roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type.")
-// });
-
 const formSchema = z.object({
-  type: z.enum(['school', 'building']),
-  name: z.string().min(3, 'Name must be at least 3 characters.'),
+  name: z.string().min(3, 'Building name must be at least 3 characters.'),
   location: z.string().min(3, 'Location must be at least 3 characters.'),
-  roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type."),
+  // floors: z.coerce.number().min(1, "At least one floor is required."),
+  roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type.")
 });
 
+// const formSchema = z.object({
+//   type: z.enum(['school', 'building']),
+//   name: z.string().min(3, 'Name must be at least 3 characters.'),
+//   location: z.string().min(3, 'Location must be at least 3 characters.'),
+//   roomTypes: z.array(roomTypeSchema).min(1, "You must add at least one room type."),
+// });
 
-// type Building = {
-//   _id: string;
-//   name: string;
-//   location: string;
-//   // floors: number;
-//   roomTypes: z.infer<typeof roomTypeSchema>[];
-//   assignedProvider?: string; // Provider's name
-//   createdAt: string;
-// }
 
 type Building = {
   _id: string;
-  type: 'school' | 'building';
   name: string;
   location: string;
+  // floors: number;
   roomTypes: z.infer<typeof roomTypeSchema>[];
-  assignedProvider?: string;
+  assignedProvider?: string; // Provider's name
   createdAt: string;
-};
+}
+
+// type Building = {
+//   _id: string;
+//   type: 'school' | 'building';
+//   name: string;
+//   location: string;
+//   roomTypes: z.infer<typeof roomTypeSchema>[];
+//   assignedProvider?: string;
+//   createdAt: string;
+// };
 
 
 type ProviderProfile = UserProfile & { role: 'provider' };
@@ -101,45 +101,52 @@ const BuildingForm = ({ form, onSubmit, isSubmitting }: { form: UseFormReturn<z.
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="school">School</SelectItem>
-                  <SelectItem value="building">Building</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormItem>
-          )}
-        />
+  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-        <FormField control={form.control} name="name" render={({ field }) => (
-          <FormItem>
-            {/* <FormLabel>Building Name</FormLabel> */}
-            <FormLabel>
-              {form.watch('type') === 'school' ? 'School Name' : 'Building Name'}
-            </FormLabel>
-            <FormControl><div className="relative"><BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Chestnut Residence" {...field} className="pl-10" /></div></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="location" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Location</FormLabel>
-            <FormControl><div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Toronto, ON" {...field} className="pl-10" /></div></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+    {/* Building Name */}
+    <FormField
+      control={form.control}
+      name="name"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Building Name</FormLabel>
+          <FormControl>
+            <div className="relative">
+              <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="e.g., Chestnut Residence"
+                {...field}
+                className="pl-10"
+              />
+            </div>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+
+    {/* Location */}
+    <FormField
+      control={form.control}
+      name="location"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Location</FormLabel>
+          <FormControl>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="e.g., Toronto, ON"
+                {...field}
+                className="pl-10"
+              />
+            </div>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+
         {/* <FormField control={form.control} name="floors" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Number of Floors</FormLabel>
@@ -194,27 +201,27 @@ const ExistingBuildingCard = ({ building, providers, onAssignmentChange, onBuild
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // const form = useForm<z.infer<typeof formSchema>>({
-  //     resolver: zodResolver(formSchema),
-  //     defaultValues: {
-  //         name: building.name,
-  //         location: building.location,
-  //         // floors: building.floors,
-  //         roomTypes: building.roomTypes
-  //     },
-  // });
-
-
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      type: 'school',
-      name: building.name,
-      location: building.location,
-      // floors: building.floors,
-      roomTypes: building.roomTypes
-    }
+      resolver: zodResolver(formSchema),
+      defaultValues: {
+          name: building.name,
+          location: building.location,
+          // floors: building.floors,
+          roomTypes: building.roomTypes
+      },
   });
+
+
+  // const form = useForm<z.infer<typeof formSchema>>({
+  //   resolver: zodResolver(formSchema),
+  //   defaultValues: {
+  //     type: 'school',
+  //     name: building.name,
+  //     location: building.location,
+  //     // floors: building.floors,
+  //     roomTypes: building.roomTypes
+  //   }
+  // });
 
 
 
@@ -382,25 +389,25 @@ export default function BuildingsPage() {
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // const form = useForm<z.infer<typeof formSchema>>({
-  //   resolver: zodResolver(formSchema),
-  //   defaultValues: {
-  //     name: '',
-  //     location: '',
-  //     // floors: 1,
-  //     roomTypes: [{ name: 'Single Dorm', count: 10, prices: { standard: 50, deep: 80, 'move-out': 120 } }]
-  //   },
-  // });
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: 'school', // ✅ REQUIRED
       name: '',
       location: '',
       // floors: 1,
       roomTypes: [{ name: 'Single Dorm', count: 10, prices: { standard: 50, deep: 80, 'move-out': 120 } }]
     },
   });
+  // const form = useForm<z.infer<typeof formSchema>>({
+  //   resolver: zodResolver(formSchema),
+  //   defaultValues: {
+  //     type: 'school', // ✅ REQUIRED
+  //     name: '',
+  //     location: '',
+  //     // floors: 1,
+  //     roomTypes: [{ name: 'Single Dorm', count: 10, prices: { standard: 50, deep: 80, 'move-out': 120 } }]
+  //   },
+  // });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -488,7 +495,7 @@ export default function BuildingsPage() {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
+                  {/* <FormField
                     control={form.control}
                     name="type"
                     render={({ field }) => (
@@ -508,14 +515,14 @@ export default function BuildingsPage() {
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  /> */}
 
                   <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
                       {/* <FormLabel>Building Name</FormLabel> */}
-                      <FormLabel>
+                      {/* <FormLabel>
                         {form.watch('type') === 'school' ? 'School Name' : 'Building Name'}
-                      </FormLabel>
+                      </FormLabel> */}
                       <FormControl><div className="relative"><BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="e.g., Chestnut Residence" {...field} className="pl-10" /></div></FormControl>
                       <FormMessage />
                     </FormItem>

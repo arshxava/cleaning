@@ -15,7 +15,7 @@ const roomTypeSchema = z.object({
 });
 
 const buildingSchema = z.object({
-  type: z.enum(['school', 'building']), // ✅ REQUIRED
+  // type: z.enum(['school', 'building']), // ✅ REQUIRED
   name: z.string().min(3),
   location: z.string().min(3),
   // floors: z.coerce.number().min(1),

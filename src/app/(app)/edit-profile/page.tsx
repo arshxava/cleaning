@@ -246,13 +246,13 @@ export default function EditProfilePage() {
                 name="school"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>School/Building</FormLabel>
+                    <FormLabel>Building</FormLabel>
                     <Select onValueChange={handleBuildingChange} value={field.value}>
                       <FormControl>
                         <div className="relative">
                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                            <SelectTrigger className="pl-10">
-                            <SelectValue placeholder="Select your school or residence" />
+                            <SelectValue placeholder="Select your residence" />
                           </SelectTrigger>
                         </div>
                       </FormControl>

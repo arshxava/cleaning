@@ -412,12 +412,12 @@ export default function BookingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                {/* Location Details */}
               <div className="space-y-4">
-                 <Label>School/Building</Label>
+                 <Label>Building</Label>
                  <Select onValueChange={handleBuildingChange} value={selectedBuilding?._id} disabled={!profile}>
                   <div className="relative">
                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <SelectTrigger className="pl-10">
-                      <SelectValue placeholder="Select your school or residence" />
+                      <SelectValue placeholder="Select your residence" />
                     </SelectTrigger>
                   </div>
                   <SelectContent>

@@ -727,7 +727,6 @@
 // }
 
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -768,18 +767,6 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// const formSchema = z.object({
-//   name: z.string().min(2, 'Name must be at least 2 characters.'),
-//   email: z.string().email('Invalid email address.'),
-//   password: z.string().min(6, 'Password must be at least 6 characters.'),
-//   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
-//   notificationPreference: z.enum(['email'], {
-//     required_error: 'Please select a notification preference.',
-//   }),
-//   school: z.string({ required_error: 'Please select your school.' }),
-//   roomSize: z.string({ required_error: 'Please select your room size.' }),
-// });
-
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.'),
@@ -788,21 +775,13 @@ const formSchema = z.object({
   notificationPreference: z.enum(['email'], {
     required_error: 'Please select a notification preference.',
   }),
-  selectionType: z.enum(['school', 'building']),
   school: z.string({ required_error: 'Please select your school.' }),
   roomSize: z.string({ required_error: 'Please select your room size.' }),
 });
 
-// type BuildingData = {
-//   _id: string;
-//   name: string;
-//   roomTypes: { name: string }[];
-// };
-
 type BuildingData = {
   _id: string;
   name: string;
-  type: 'school' | 'building';
   roomTypes: { name: string }[];
 };
 
@@ -840,13 +819,8 @@ export default function SignUpPage() {
       password: '',
       phone: '',
       notificationPreference: 'email',
-      selectionType: 'school',
     },
   });
-
-  const filteredBuildings = buildings.filter(
-    b => b.type === form.watch('selectionType')
-  );
 
   const handleBuildingChange = (buildingName: string) => {
     const building = buildings.find(b => b.name === buildingName);
@@ -855,95 +829,91 @@ export default function SignUpPage() {
     form.resetField('roomSize');
   };
 
+  // async function onSubmit(values: z.infer<typeof formSchema>) {
+  //   try {
+  //     const userCredential = await createUserWithEmailAndPassword(
+  //       auth,
+  //       values.email,
+  //       values.password
+  //     );
+  //     const user = userCredential.user;
+
+  //     const profileResponse = await fetch('/api/users/ensure-profile', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         uid: user.uid,
+  //         name: values.name,
+  //         email: values.email,
+  //         phone: values.phone,
+  //         notificationPreference: values.notificationPreference,
+  //         school: values.school,
+  //         roomSize: values.roomSize,
+  //         role: 'user',
+  //       }),
+  //     });
+
+  //     if (!profileResponse.ok) throw new Error('Failed to save user profile.');
+
+  //     toast({
+  //       title: 'Account Created Successfully!',
+  //       description: "Welcome! You're now logged in.",
+  //     });
+
+  //     router.push('/dashboard');
+
+  //   } catch (error: any) {
+  //     toast({
+  //       variant: 'destructive',
+  //       title: 'Sign Up Failed',
+  //       description: error.message,
+  //     });
+  //   }
+  // }
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      // 1️⃣ Create user in Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
-      const user = userCredential.user;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      values.email,
+      values.password
+    );
+    const user = userCredential.user;
 
-      // 2️⃣ Register user on WordPress
-      const wpRes = await fetch(
-        "https://testingwebsitedesign.com/aplus-cleaning/wp-json/custom/v1/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: values.email.split("@")[0], // Example username
-            email: values.email,
-            password: values.password,
-          }),
-        }
-      );
+    const profileResponse = await fetch('/api/users/ensure-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: user.uid,
+        name: values.name,
+        email: values.email,
+        password: values.password, // 👈 SAVED IN DB
+        phone: values.phone,
+        notificationPreference: values.notificationPreference,
+        school: values.school,
+        roomSize: values.roomSize,
+        role: 'user',
+      }),
+    });
 
-      const wpData = await wpRes.json();
+    if (!profileResponse.ok) throw new Error('Failed to save user profile.');
 
-      if (!wpRes.ok) {
-        console.error("WordPress Registration Error:", wpData);
-        throw new Error(
-          wpData.message ||
-            "WordPress registration failed. Try a different email."
-        );
-      }
+    toast({
+      title: 'Account Created Successfully!',
+      description: "Welcome! You're now logged in.",
+    });
 
-      console.log("WORDPRESS USER CREATED:", wpData);
+    router.push('/dashboard');
 
-      // 3️⃣ Save profile to MongoDB
-      const profileResponse = await fetch('/api/users/ensure-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: user.uid,
-          name: values.name,
-          email: values.email,
-          phone: values.phone,
-          notificationPreference: values.notificationPreference,
-          selectionType: values.selectionType,
-          school: values.school,
-          roomSize: values.roomSize,
-          role: 'user',
-        }),
-      });
-
-      if (!profileResponse.ok) {
-        const errorData = await profileResponse.json();
-        throw new Error(errorData.message || 'Failed to save user profile.');
-      }
-
-      toast({
-        title: 'Account Created Successfully!',
-        description: "Welcome! You're now logged in.",
-      });
-
-      router.push('/dashboard');
-
-    } catch (error: any) {
-      console.error("Sign up error:", error);
-
-      let description = "An unexpected error occurred. Please try again.";
-
-      if (error.code === 'auth/email-already-in-use') {
-        description = "This email is already in use. Please try signing in.";
-        form.setError("email", {
-          type: "manual",
-          message: "This email is already taken.",
-        });
-      } else {
-        description = error.message;
-      }
-
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description,
-      });
-    }
+  } catch (error: any) {
+    toast({
+      variant: 'destructive',
+      title: 'Sign Up Failed',
+      description: error.message,
+    });
   }
+}
 
   return (
     <div className="flex items-center justify-center py-12">
@@ -959,208 +929,98 @@ export default function SignUpPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
 
             {/* NAME */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             {/* EMAIL */}
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="you@university.edu"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder="you@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             {/* PASSWORD */}
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="password" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             {/* PHONE */}
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="(123) 456-7890" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="(123) 456-7890" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             {/* NOTIFICATION */}
-            <FormField
-              control={form.control}
-              name="notificationPreference"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Notify me by</FormLabel>
+            <FormField control={form.control} name="notificationPreference" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notify me by</FormLabel>
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value}>
+                  <RadioGroupItem value="email" /> Email
+                </RadioGroup>
+              </FormItem>
+            )} />
+
+            {/* BUILDING */}
+            <FormField control={form.control} name="school" render={() => (
+              <FormItem>
+                <FormLabel>Building</FormLabel>
+                <Select onValueChange={handleBuildingChange}>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="email" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Email</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select building" />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* SEARCH BY */}
-            <FormField
-              control={form.control}
-              name="selectionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Search By</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select option" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="school">School</SelectItem>
-                      <SelectItem value="building">Building</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* SCHOOL */}
-            <FormField
-              control={form.control}
-              name="school"
-              render={() => (
-                <FormItem>
-                  <FormLabel>
-                    {form.watch('selectionType') === 'school' ? 'School' : 'Building'}
-                  </FormLabel>
-                  <Select onValueChange={handleBuildingChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select option" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filteredBuildings.length > 0 ? (
-                        filteredBuildings.map((b) => (
-                          <SelectItem key={b._id} value={b.name}>
-                            {b.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="loading" disabled>
-                          No options available
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <SelectContent>
+                    {buildings.map(b => (
+                      <SelectItem key={b._id} value={b.name}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
 
             {/* ROOM SIZE */}
-            <FormField
-              control={form.control}
-              name="roomSize"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Room Size</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={!selectedBuilding}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            !selectedBuilding
-                              ? "Select building first"
-                              : "Select your room size"
-                          }
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {selectedBuilding?.roomTypes.map((room, index) => (
-                        <SelectItem key={index} value={room.name}>
-                          {room.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="roomSize" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Room Size</FormLabel>
+                <Select onValueChange={field.onChange} disabled={!selectedBuilding}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select building first" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedBuilding?.roomTypes.map((room, i) => (
+                      <SelectItem key={i} value={room.name}>{room.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
 
-            {/* SUBMIT BUTTON */}
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={form.formState.isSubmitting}
-            >
-              {form.formState.isSubmitting
-                ? 'Creating Account...'
-                : 'Create Account'}
-            </Button>
+            <Button type="submit" className="w-full">Create Account</Button>
           </form>
         </Form>
-
-        <div className="mt-4 text-center text-sm">
-          Already have an account?{' '}
-          <Link href="/sign-in" className="font-bold text-primary underline">
-            Sign In
-          </Link>
-        </div>
       </div>
     </div>
   );
