@@ -772,9 +772,10 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
   password: z.string().min(6, 'Password must be at least 6 characters.'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits.'),
-  notificationPreference: z.enum(['email'], {
-    required_error: 'Please select a notification preference.',
-  }),
+  // notificationPreference: z.enum(['email'], {
+  //   required_error: 'Please select a notification preference.',
+  // }),
+  notifyByEmail: z.boolean().optional(),
   school: z.string({ required_error: 'Please select your school.' }),
   roomSize: z.string({ required_error: 'Please select your room size.' }),
 });
@@ -814,12 +815,12 @@ export default function SignUpPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      phone: '',
-      notificationPreference: 'email',
-    },
+  name: '',
+  email: '',
+  password: '',
+  phone: '',
+  notifyByEmail: true, // 👈 checked by default
+},
   });
 
   const handleBuildingChange = (buildingName: string) => {
@@ -890,7 +891,7 @@ export default function SignUpPage() {
         email: values.email,
         password: values.password, // 👈 SAVED IN DB
         phone: values.phone,
-        notificationPreference: values.notificationPreference,
+        notifyByEmail: values.notifyByEmail=== true,
         school: values.school,
         roomSize: values.roomSize,
         role: 'user',
@@ -973,14 +974,33 @@ export default function SignUpPage() {
             )} />
 
             {/* NOTIFICATION */}
-            <FormField control={form.control} name="notificationPreference" render={({ field }) => (
+            {/* <FormField control={form.control} name="notificationPreference" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notify me by</FormLabel>
                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value}>
                   <RadioGroupItem value="email" /> Email
                 </RadioGroup>
               </FormItem>
-            )} />
+            )} /> */}
+
+<FormField
+  control={form.control}
+  name="notifyByEmail"
+  render={({ field }) => (
+    <FormItem className="flex items-center gap-2">
+      <FormControl>
+        <input
+          type="checkbox"
+          checked={field.value}
+          onChange={(e) => field.onChange(e.target.checked)}
+        />
+      </FormControl>
+      <FormLabel className="font-normal">
+        Notify me by email
+      </FormLabel>
+    </FormItem>
+  )}
+/>
 
             {/* BUILDING */}
             <FormField control={form.control} name="school" render={() => (

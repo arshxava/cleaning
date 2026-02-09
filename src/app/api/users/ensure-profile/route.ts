@@ -4,14 +4,14 @@ import { z } from 'zod';
 import admin from 'firebase-admin';
 import bcrypt from 'bcrypt'; // 👈 ADD
 
-// Schema
+// Schemaa
 const profileSchema = z.object({
   uid: z.string(),
   name: z.string(),
   email: z.string().email(),
   password: z.string().optional(), // 👈 ADD
   phone: z.string(),
-  notificationPreference: z.enum(['email']),
+  notifyByEmail: z.boolean().optional(), // ✅ FIX
   school: z.string().optional(),
   roomSize: z.string().optional(),
   role: z.enum(['user', 'admin', 'provider']),
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
           email: data.email,
           password: hashedPassword, // 👈 STORED HASHED
           phone: data.phone,
-          notificationPreference: data.notificationPreference,
+          notifyByEmail: data.notifyByEmail === true, // ✅ STORE BOOLEAN
           school: data.school,
           roomSize: data.roomSize,
           role: data.role,
@@ -78,22 +78,31 @@ export async function POST(request: Request) {
       { upsert: true }
     );
 
-    if (result.upsertedCount > 0 && data.role === 'user') {
+    if (
+      result.upsertedCount > 0 &&
+      data.role === 'user' &&
+      data.notifyByEmail === true
+    ) {
       await sendWelcomeEmail(data.email, data.name);
     }
 
-    if (result.upsertedCount > 0) {
-      return NextResponse.json({ message: 'Profile created successfully' }, { status: 201 });
-    } else {
-      return NextResponse.json({ message: 'Profile updated successfully' }, { status: 200 });
-    }
+    return NextResponse.json(
+      { message: result.upsertedCount > 0 ? 'Profile created successfully' : 'Profile updated successfully' },
+      { status: result.upsertedCount > 0 ? 201 : 200 }
+    );
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Invalid data', errors: error.errors },
+        { status: 400 }
+      );
     }
 
     console.error(error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
