@@ -819,7 +819,7 @@ export default function SignUpPage() {
   email: '',
   password: '',
   phone: '',
-  notifyByEmail: true, // 👈 checked by default
+  notifyByEmail: false, // 👈 checked by default
 },
   });
 
@@ -891,7 +891,7 @@ export default function SignUpPage() {
         email: values.email,
         password: values.password, // 👈 SAVED IN DB
         phone: values.phone,
-        notifyByEmail: values.notifyByEmail=== true,
+        notifyByEmail: values.notifyByEmail=== false,
         school: values.school,
         roomSize: values.roomSize,
         role: 'user',
@@ -991,11 +991,12 @@ export default function SignUpPage() {
       <FormControl>
         <input
           type="checkbox"
+          className="h-4 w-4 mt-[8px]"   // 👈 key fix
           checked={field.value}
           onChange={(e) => field.onChange(e.target.checked)}
         />
       </FormControl>
-      <FormLabel className="font-normal">
+      <FormLabel className="text-sm font-normal leading-none cursor-pointer">
         Notify me by email
       </FormLabel>
     </FormItem>

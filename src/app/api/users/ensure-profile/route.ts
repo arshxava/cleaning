@@ -65,7 +65,7 @@ export async function POST(request: Request) {
           email: data.email,
           password: hashedPassword, // 👈 STORED HASHED
           phone: data.phone,
-          notifyByEmail: data.notifyByEmail === true, // ✅ STORE BOOLEAN
+          notifyByEmail: data.notifyByEmail === false, // ✅ STORE BOOLEAN
           school: data.school,
           roomSize: data.roomSize,
           role: data.role,
