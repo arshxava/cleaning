@@ -92,14 +92,18 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
           {/* LOGO */}
-          <Link href="/" className="mr-6 flex items-center gap-2">
-            <img
-              src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2026/01/ChatGPT_Imsd.png"
-              alt="A+ Cleaning Solutions"
-              className="h-12"
-            />
-          </Link>
-
+          <a
+  href="https://aplus-cleaning-solutions.com/"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="mr-6 flex items-center gap-2"
+>
+  <img
+    src="https://testingwebsitedesign.com/aplus-cleaning/wp-content/uploads/2026/01/ChatGPT_Imsd.png"
+    alt="A+ Cleaning Solutions"
+    className="h-12"
+  />
+</a>
           {/* DESKTOP NAV */}
           <nav className="hidden md:flex md:items-center md:gap-6 text-sm font-medium">
             {visibleLinks.map(link => (
