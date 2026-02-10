@@ -1006,7 +1006,7 @@ export default function SignUpPage() {
             {/* BUILDING */}
             <FormField control={form.control} name="school" render={() => (
               <FormItem>
-                <FormLabel>Building</FormLabel>
+                <FormLabel>Building Name</FormLabel>
                 <Select onValueChange={handleBuildingChange}>
                   <FormControl>
                     <SelectTrigger>

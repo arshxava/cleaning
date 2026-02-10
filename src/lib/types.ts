@@ -4,7 +4,7 @@ export type UserProfile = {
   name: string;
   email: string;
   phone: string;
-  notificationPreference?: 'email';
+  notifyByEmail?: boolean; // 👈 REQUIRED
   school?: string;
   roomSize?: string;
   role: 'user' | 'admin' | 'provider';

@@ -322,9 +322,21 @@ export default function DashboardPage() {
             dangerouslySetInnerHTML={{ __html: termsContent }}
           /> */}
 
-          <div className="max-h-[300px] overflow-y-auto whitespace-pre-line text-sm text-gray-700">
+          {/* <div className="max-h-[300px] overflow-y-auto whitespace-pre-line text-sm text-gray-700">
             {termsContent}
-          </div>
+          </div> */}
+<div
+  className="
+    max-h-[300px]
+    overflow-y-auto
+    prose
+    prose-sm
+    prose-gray
+    prose-p:my-3
+    prose-li:my-1
+  "
+  dangerouslySetInnerHTML={{ __html: termsContent }}
+/>
 
           <DialogFooter>
             <Button onClick={() => setShowTerms(false)}>

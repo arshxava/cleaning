@@ -38,6 +38,8 @@
     "@sendgrid/mail": "^8.1.6",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.1",
+    "@tiptap/react": "^3.19.0",
+    "@tiptap/starter-kit": "^3.19.0",
     "@woocommerce/woocommerce-rest-api": "^1.0.2",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
@@ -68,6 +70,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/bcrypt": "^6.0.0",
     "@types/mongodb": "^4.0.7",
     "@types/node": "^20",

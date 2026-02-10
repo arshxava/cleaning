@@ -90,10 +90,16 @@ export default function UsersPage() {
                       <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>{user.role}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                        <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {user.email}</p>
-                        <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> {user.phone}</p>
-                        <p className="flex items-center gap-2"><Building className="h-4 w-4" /> {user.school}</p>
-                        <p className="flex items-center gap-2"><Home className="h-4 w-4" /> {user.roomSize}</p>
+                      <p className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Email Service:{' '}
+                        <span className={user.notifyByEmail ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                          {user.notifyByEmail ? 'Yes' : 'No'}
+                        </span>
+                      </p>
+                      <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> {user.phone}</p>
+                      <p className="flex items-center gap-2"><Building className="h-4 w-4" /> {user.school}</p>
+                      <p className="flex items-center gap-2"><Home className="h-4 w-4" /> {user.roomSize}</p>
                     </div>
                   </div>
                   <div className="text-right text-sm text-muted-foreground">
