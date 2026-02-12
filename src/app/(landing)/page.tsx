@@ -1108,7 +1108,7 @@ export default function SignUpPage() {
 
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
-
+const [isSending, setIsSending] = useState(false);
   const [showOtherModal, setShowOtherModal] = useState(false);
   const [otherRequest, setOtherRequest] = useState({
     name: '',
@@ -1323,23 +1323,41 @@ return (
 
           <DialogFooter>
             <Button
-              onClick={async () => {
-                await fetch('/api/building-requests', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(otherRequest),
-                });
+  disabled={isSending}
+  onClick={async () => {
+    try {
+      setIsSending(true);
 
-                toast({
-                  title: 'Request sent',
-                  description: 'Admin has been notified.',
-                });
+      const res = await fetch('/api/building-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otherRequest),
+      });
 
-                setShowOtherModal(false);
-              }}
-            >
-              Send Request
-            </Button>
+      if (!res.ok) {
+        throw new Error("Failed to send request");
+      }
+
+      toast({
+        title: 'Request sent',
+        description: 'Admin has been notified.',
+      });
+
+      setShowOtherModal(false);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message,
+      });
+    } finally {
+      setIsSending(false);
+    }
+  }}
+>
+  {isSending ? "Sending..." : "Send Request"}
+</Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
